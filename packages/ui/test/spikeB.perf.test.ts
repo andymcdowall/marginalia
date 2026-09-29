@@ -4,7 +4,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
 import { milestonesField } from "../src/editor/milestones.js";
-import { redlineStubField } from "../src/editor/redline.js";
+import { redlineField, redline, setRedlineOn, setBaselineClean } from "../src/editor/redline.js";
 
 function generateDoc(words: number): string {
   const parts: string[] = [];
@@ -30,9 +30,12 @@ describe("Spike B: editor perf on a 10,000-word doc", () => {
     const view = new EditorView({
       state: EditorState.create({
         doc,
-        extensions: [markdown(), milestonesField, redlineStubField],
+        extensions: [markdown(), milestonesField, redlineField, redline],
       }),
     });
+    // Turn redline on against a slightly-different baseline, so every keystroke below actually
+    // exercises a real diff recompute, not a no-op (on: false) path.
+    view.dispatch({ effects: [setRedlineOn.of(true), setBaselineClean.of(doc.replace(/word1(\d\d\d)/g, "word2$1"))] });
 
     const samples: number[] = [];
     let pos = Math.floor(doc.length / 2);

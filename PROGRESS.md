@@ -1,7 +1,7 @@
 # Progress
 
 ## Current phase
-Phase 4: Redline (starting)
+Phase 5: Merge (starting)
 
 ## Done
 ### Phase 0: Scaffold + spikes
@@ -45,11 +45,21 @@ Phase 4: Redline (starting)
 - `pnpm verify` passes (lint + typecheck + 60 tests + `cargo check`). App launches cleanly; no interactive GUI click-through (same caveat as Phases 1–2).
 - Known gaps, logged rather than silently skipped: no `Toolbar.tsx` yet (Comment button reachable only via Cmd+Shift+M; Live/Source toggle has no UI button yet either, though the underlying `sourceMode` field/toggle exists); no Snapshot-creation UI trigger yet (the `createSnapshot` core function is tested but nothing in the UI calls it — `BranchMenu`'s idea-creation flow is the only wired write action for versions right now).
 
+### Phase 4: Redline
+- `packages/core/src/diff/`: `cleanText.ts` (strip milestones + position map), `tokenize.ts`, `hunks.ts` (Hunk type + whitespace-only filtering), `wordDiff.ts` (private-use-codepoint token encoding through `diff-match-patch`, correctly handling the BMP→supplementary-plane rollover via per-UTF16-unit token indices, not just per-character), `revert.ts`.
+- Editor: `redline.ts` rebuilt as a `ViewPlugin` with a real 150ms debounce timer (see DECISIONS.md for why the first, purely-reactive version was a real perf bug, not just a stylistic simplification) — insertions get a `cm-ins` mark, deletions a `cm-del` widget. `ChangesPanel.tsx` (hunk count, Prev/Next via Alt+↑/↓, click-to-jump) + `BaselinePicker.tsx` (Origin/snapshots/ideas/pick-a-commit) wired as a new "Changes" sidebar tab. Cmd+Shift+R toggles redline.
+- **Phase 4 acceptance (SPEC.md §13), all passing** — `packages/core/test/redline.test.ts` + `cleanText.test.ts`:
+  - Revert property test: 500 random base/current pairs with random milestones, reverting all hunks last-to-first restores the base text exactly and every milestone id survives.
+  - Adding/removing comments produces zero hunks (verified directly, plus the fuzz/property tests never spuriously produce comment-only hunks either).
+  - `cleanText` offset-map tests (no milestones, tags stripped, tag at start/end, adjacent tags).
+  - 10,000-word/200-hunk diff recompute benchmark, under 50ms (see DECISIONS.md re: warmup + best-of-N against shared-machine test-suite noise).
+- `pnpm verify` passes (lint + typecheck + 69 tests + `cargo check`), stable across repeated full-suite runs. App launches cleanly; no interactive GUI click-through (same caveat as Phases 1–3).
+
 ## In progress
-- Starting Phase 4: cleanText/position-map, tokenize, wordDiff, the redline field and widgets, Changes panel, baseline picker, revert.
+- Starting Phase 5: `mergeThreads`, the merge flow (`merge.ts`), `MergeView`, abort.
 
 ## Blocked
 (none)
 
 ## Next steps
-- Phase 4 acceptance (SPEC.md §13): revert property test (500 cases), comment add/remove produces zero hunks, cleanText map tests, 10k-word/200-hunk diff recompute benchmark under 50ms.
+- Phase 5 acceptance (SPEC.md §13): integration tests for clean merge, text conflict (ours/theirs/both), independent thread additions uniting without conflict, same-thread replies on both sides uniting, later-`updated`-wins status conflict, abort restoring pre-merge state, non-md conflict keep-theirs, and resuming a merge after an app restart.

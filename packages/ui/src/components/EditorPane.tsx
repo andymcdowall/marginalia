@@ -1,11 +1,12 @@
 import { useEffect, useRef } from "react";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { joinFile, splitFile, type Thread } from "@marginalia/core";
+import { cleanText, joinFile, resolveBaselineSha, baselineText, splitFile, type Thread } from "@marginalia/core";
 import { editorSetup } from "../editor/setup.js";
 import { setThreads, setActiveThreadId } from "../editor/commentHighlights.js";
 import { insertCommentTags, removeCommentTags } from "../editor/comments.js";
 import { clipboardHandlers } from "../editor/clipboard.js";
+import { setRedlineOn, setBaselineClean } from "../editor/redline.js";
 import { usePlatform } from "../platformContext.js";
 import { useStore } from "../store.js";
 
@@ -81,10 +82,28 @@ export function EditorPane() {
         e.preventDefault();
         handleCreateComment();
       }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "r") {
+        e.preventDefault();
+        useStore.getState().setRedlineOn(!useStore.getState().redlineOn);
+      }
     }
     function handleBlur(): void {
       if (saveTimer) clearTimeout(saveTimer);
       void doSave();
+    }
+
+    async function resolveAndApplyBaseline(): Promise<void> {
+      const view = viewRef.current;
+      const workspace = useStore.getState().workspace;
+      if (!view || !workspace || !path) return;
+      const { baseline } = useStore.getState();
+      const branch = useStore.getState().currentBranch;
+      const sha = await resolveBaselineSha(workspace.git, baseline, branch);
+      const rel = workspace.git.toRelative(path);
+      const text = await baselineText(workspace.git, sha, rel);
+      const clean = cleanText(text).text;
+      viewRef.current?.dispatch({ effects: setBaselineClean.of(clean) });
+      useStore.getState().setBaselineCleanText(clean);
     }
 
     void (async () => {
@@ -119,10 +138,15 @@ export function EditorPane() {
       window.addEventListener("keydown", handleKeyDown);
       window.addEventListener("blur", handleBlur);
       unsubscribeQuit = platform.onBeforeQuit(doSave);
+
+      if (useStore.getState().redlineOn) {
+        viewRef.current.dispatch({ effects: setRedlineOn.of(true) });
+        void resolveAndApplyBaseline();
+      }
     })();
 
-    // Pushes external thread/active-thread changes (from CommentsPanel/HistoryPanel actions)
-    // into the live CodeMirror state without remounting the editor.
+    // Pushes external thread/active-thread/redline changes (from CommentsPanel/HistoryPanel/
+    // ChangesPanel actions) into the live CodeMirror state without remounting the editor.
     const unsubscribeStore = useStore.subscribe((state, prevState) => {
       const view = viewRef.current;
       if (!view) return;
@@ -133,7 +157,13 @@ export function EditorPane() {
       if (state.activeThreadId !== prevState.activeThreadId) {
         effects.push(setActiveThreadId.of(state.activeThreadId));
       }
+      if (state.redlineOn !== prevState.redlineOn) {
+        effects.push(setRedlineOn.of(state.redlineOn));
+      }
       if (effects.length) view.dispatch({ effects });
+      if (state.redlineOn && (state.baseline !== prevState.baseline || (state.redlineOn && !prevState.redlineOn))) {
+        void resolveAndApplyBaseline();
+      }
     });
 
     return () => {

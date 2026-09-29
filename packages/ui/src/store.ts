@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { DirEntry, GitClient, SaveCommit, Thread } from "@marginalia/core";
+import type { Baseline, DirEntry, GitClient, SaveCommit, Thread } from "@marginalia/core";
 
 export type OpenFile = {
   path: string;
@@ -33,7 +33,12 @@ type Store = {
   activeThreadId: string | null;
   draftThreadId: string | null;
   commentFilter: CommentFilter;
-  sidebarTab: "comments" | "history";
+  sidebarTab: "comments" | "history" | "changes";
+  redlineOn: boolean;
+  baseline: Baseline;
+  baselineLabel: string;
+  baselineCleanText: string;
+  activeHunkIndex: number;
 
   setWorkspace: (ws: WorkspaceState | null) => void;
   setCurrentBranch: (name: string) => void;
@@ -49,7 +54,11 @@ type Store = {
   setActiveThreadId: (id: string | null) => void;
   setDraftThreadId: (id: string | null) => void;
   setCommentFilter: (filter: CommentFilter) => void;
-  setSidebarTab: (tab: "comments" | "history") => void;
+  setSidebarTab: (tab: "comments" | "history" | "changes") => void;
+  setRedlineOn: (on: boolean) => void;
+  setBaseline: (baseline: Baseline, label: string) => void;
+  setBaselineCleanText: (text: string) => void;
+  setActiveHunkIndex: (i: number) => void;
   toggleSidebarLeft: () => void;
   toggleSidebarRight: () => void;
   toggleSourceMode: () => void;
@@ -69,6 +78,11 @@ export const useStore = create<Store>((set) => ({
   draftThreadId: null,
   commentFilter: "open",
   sidebarTab: "comments",
+  redlineOn: false,
+  baseline: { kind: "origin" },
+  baselineLabel: "Origin",
+  baselineCleanText: "",
+  activeHunkIndex: -1,
 
   setWorkspace: (ws) => set({ workspace: ws, tree: {}, expandedDirs: new Set(), openFile: null }),
   setCurrentBranch: (name) => set({ currentBranch: name }),
@@ -86,6 +100,10 @@ export const useStore = create<Store>((set) => ({
       openFile: { path, threads, dirty: false, lastSaved: content, docText: content },
       activeThreadId: null,
       draftThreadId: null,
+      baseline: { kind: "origin" },
+      baselineLabel: "Origin",
+      baselineCleanText: "",
+      activeHunkIndex: -1,
     }),
   closeFile: () => set({ openFile: null, activeThreadId: null, draftThreadId: null }),
   markDirty: (dirty) => set((s) => (s.openFile ? { openFile: { ...s.openFile, dirty } } : {})),
@@ -97,6 +115,10 @@ export const useStore = create<Store>((set) => ({
   setDraftThreadId: (id) => set({ draftThreadId: id }),
   setCommentFilter: (filter) => set({ commentFilter: filter }),
   setSidebarTab: (tab) => set({ sidebarTab: tab }),
+  setRedlineOn: (on) => set({ redlineOn: on }),
+  setBaseline: (baseline, label) => set({ baseline, baselineLabel: label }),
+  setBaselineCleanText: (text) => set({ baselineCleanText: text }),
+  setActiveHunkIndex: (i) => set({ activeHunkIndex: i }),
   toggleSidebarLeft: () => set((s) => ({ sidebarLeftCollapsed: !s.sidebarLeftCollapsed })),
   toggleSidebarRight: () => set((s) => ({ sidebarRightCollapsed: !s.sidebarRightCollapsed })),
   toggleSourceMode: () => set((s) => ({ sourceMode: !s.sourceMode })),

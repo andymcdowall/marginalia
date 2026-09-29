@@ -341,6 +341,70 @@ body {
   color: inherit;
 }
 
+.changes-panel {
+  font-size: 12px;
+  padding: 8px 12px;
+}
+
+.changes-panel-empty {
+  padding: 12px;
+  opacity: 0.6;
+}
+
+.changes-panel-toggle {
+  margin-bottom: 6px;
+}
+
+.baseline-picker {
+  width: 100%;
+  margin-bottom: 8px;
+  font-size: 12px;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.changes-panel-count {
+  opacity: 0.7;
+  margin-bottom: 4px;
+}
+
+.changes-panel-nav {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.changes-panel-nav button {
+  flex: 1;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.changes-hunk {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.changes-hunk.active {
+  background: var(--border);
+}
+
+.changes-hunk-del {
+  color: #cf222e;
+  text-decoration: line-through;
+}
+
+.changes-hunk-ins {
+  color: #1a7f37;
+}
+
 .comment-reply textarea {
   width: 100%;
   margin-top: 6px;

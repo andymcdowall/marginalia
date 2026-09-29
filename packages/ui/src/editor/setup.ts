@@ -12,6 +12,7 @@ import { frontmatterField } from "./frontmatter.js";
 import { editorTheme } from "./theme.js";
 import { sourceModeField } from "./sourceMode.js";
 import { threadsField, activeThreadIdField, commentHighlights } from "./commentHighlights.js";
+import { redlineField, redline } from "./redline.js";
 
 function wrapSelection(before: string, after: string): (view: EditorView) => boolean {
   return (view) => {
@@ -68,6 +69,8 @@ export function editorSetup(initialThreads: Thread[] = []): Extension[] {
     threadsField.init(() => initialThreads),
     activeThreadIdField,
     commentHighlights,
+    redlineField,
+    redline,
     livePreview,
     editorTheme,
   ];

@@ -8,6 +8,7 @@ import { EditorPane } from "./components/EditorPane.js";
 import { StatusBar } from "./components/StatusBar.js";
 import { HistoryPanel } from "./components/HistoryPanel.js";
 import { CommentsPanel } from "./components/CommentsPanel.js";
+import { ChangesPanel } from "./components/ChangesPanel.js";
 
 async function openAndPrepare(platform: Platform, root: string) {
   const info = await openWorkspace(platform, root);
@@ -75,11 +76,16 @@ export function App() {
               <button type="button" className={sidebarTab === "comments" ? "active" : ""} onClick={() => setSidebarTab("comments")}>
                 Comments
               </button>
+              <button type="button" className={sidebarTab === "changes" ? "active" : ""} onClick={() => setSidebarTab("changes")}>
+                Changes
+              </button>
               <button type="button" className={sidebarTab === "history" ? "active" : ""} onClick={() => setSidebarTab("history")}>
                 History
               </button>
             </div>
-            {sidebarTab === "comments" ? <CommentsPanel /> : <HistoryPanel />}
+            {sidebarTab === "comments" && <CommentsPanel />}
+            {sidebarTab === "changes" && <ChangesPanel />}
+            {sidebarTab === "history" && <HistoryPanel />}
           </div>
         )}
       </div>
