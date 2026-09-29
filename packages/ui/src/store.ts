@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { DirEntry, Thread } from "@marginalia/core";
+import type { DirEntry, GitClient, SaveCommit, Thread } from "@marginalia/core";
 
 export type OpenFile = {
   path: string;
@@ -11,6 +11,8 @@ export type OpenFile = {
 export type WorkspaceState = {
   root: string;
   gitRoot: string;
+  git: GitClient;
+  saveCommit: SaveCommit;
 };
 
 type TreeState = Record<string, DirEntry[]>; // dir path -> its direct children
@@ -23,8 +25,12 @@ type Store = {
   sidebarLeftCollapsed: boolean;
   sidebarRightCollapsed: boolean;
   sourceMode: boolean;
+  currentBranch: string;
+  branchMenuOpen: boolean;
 
   setWorkspace: (ws: WorkspaceState | null) => void;
+  setCurrentBranch: (name: string) => void;
+  setBranchMenuOpen: (open: boolean) => void;
   setTreeEntries: (dir: string, entries: DirEntry[]) => void;
   toggleDir: (dir: string) => void;
   openFileAt: (path: string, threads: Thread[], content: string) => void;
@@ -45,8 +51,12 @@ export const useStore = create<Store>((set) => ({
   sidebarLeftCollapsed: false,
   sidebarRightCollapsed: false,
   sourceMode: false,
+  currentBranch: "main",
+  branchMenuOpen: false,
 
   setWorkspace: (ws) => set({ workspace: ws, tree: {}, expandedDirs: new Set(), openFile: null }),
+  setCurrentBranch: (name) => set({ currentBranch: name }),
+  setBranchMenuOpen: (open) => set({ branchMenuOpen: open }),
   setTreeEntries: (dir, entries) => set((s) => ({ tree: { ...s.tree, [dir]: entries } })),
   toggleDir: (dir) =>
     set((s) => {

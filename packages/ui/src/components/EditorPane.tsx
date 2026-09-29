@@ -27,11 +27,12 @@ export function EditorPane() {
     async function doSave(): Promise<void> {
       const view = viewRef.current;
       const current = useStore.getState().openFile;
-      if (!view || !current || current.path !== path) return;
+      const workspace = useStore.getState().workspace;
+      if (!view || !current || !workspace || current.path !== path) return;
       const body = view.state.doc.toString();
       const content = joinFile(body, current.threads);
       if (content === current.lastSaved) return;
-      await platform.fs.writeText(path, content);
+      await workspace.saveCommit.save(path, content);
       markSaved(content);
     }
 
@@ -56,6 +57,8 @@ export function EditorPane() {
       const raw = await platform.fs.readText(path);
       if (cancelled) return;
       const parsed = splitFile(raw);
+      const workspace = useStore.getState().workspace;
+      workspace?.saveCommit.primeLastSaved(path, raw);
 
       const state = EditorState.create({
         doc: parsed.body,

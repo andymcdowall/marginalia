@@ -28,8 +28,16 @@ body {
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
 }
 
+.app-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
 .app-shell {
   display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
   height: 100%;
 }
 
@@ -82,4 +90,143 @@ body {
 
 .file-tree-row:hover {
   background: var(--border);
+}
+
+.sidebar-right {
+  width: 320px;
+  flex: 0 0 auto;
+  overflow: auto;
+  border-left: 1px solid var(--border);
+}
+
+.status-bar {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 12px;
+  font-size: 12px;
+  border-top: 1px solid var(--border);
+  position: relative;
+}
+
+.status-bar button {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.status-bar button:hover {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.status-bar-save {
+  opacity: 0.6;
+}
+
+.branch-menu {
+  position: absolute;
+  bottom: 28px;
+  left: 8px;
+  min-width: 220px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  padding: 6px;
+  font-size: 13px;
+  z-index: 10;
+}
+
+.branch-menu-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+.branch-menu-row.current {
+  font-weight: 600;
+}
+
+.branch-menu-row:hover {
+  background: var(--border);
+}
+
+.branch-menu-name {
+  cursor: pointer;
+}
+
+.branch-menu-actions button {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 11px;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.branch-menu-actions button:hover {
+  opacity: 1;
+}
+
+.branch-menu-new {
+  width: 100%;
+  margin-top: 4px;
+  padding: 4px 6px;
+  background: none;
+  border: none;
+  color: var(--accent);
+  text-align: left;
+  cursor: pointer;
+}
+
+.history-panel {
+  font-size: 12px;
+  padding: 8px 12px;
+}
+
+.history-panel-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.history-panel-empty {
+  opacity: 0.6;
+  padding: 8px 12px;
+}
+
+.history-row {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.history-row-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.history-row-actions button {
+  font-size: 11px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.history-preview {
+  max-height: 200px;
+  overflow: auto;
+  background: var(--border);
+  padding: 6px;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  font-size: 11px;
 }

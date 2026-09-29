@@ -1,7 +1,7 @@
 # Progress
 
 ## Current phase
-Phase 2: Git versioning (starting)
+Phase 3: Comments (starting)
 
 ## Done
 ### Phase 0: Scaffold + spikes
@@ -26,11 +26,19 @@ Phase 2: Git versioning (starting)
 - **Manual verification done:** launched `pnpm dev`, confirmed the app compiles, launches, and stays running without crashing.
 - **Manual verification NOT done (flagging honestly, per this run's own instructions):** no interactive/visual GUI pass was done (no computer-use/screenshot-driven click-through of Open Folder → file tree → open a note → type → watch live preview & autosave). The underlying logic for each of those is covered by jsdom/integration tests, but you should sanity-check the actual feel of it once. See "top things to manually test" note below once the whole build is done — this note will be superseded by the final report.
 
+### Phase 2: Git versioning
+- `packages/core`: `git/GitClient.ts`, `versions/{saveCommit,snapshots,branches,baseline,history}.ts`.
+- UI: `StatusBar.tsx` (idea/branch button + save state), `BranchMenu.tsx` (list/switch/new/rename/delete — "Merge into current…" omitted, that's Phase 5), `HistoryPanel.tsx` (grouped history with View/Restore/Start-new-idea-from-here). `EditorPane` now saves through `SaveCommit` (real autosave commits) instead of a raw `fs.writeText`.
+- Note: `git for-each-ref`'s pattern needs the full `refs/tags/...` prefix — an early bug where I passed the bare `snapshot/<branch>/` prefix made `listSnapshots` silently return nothing; caught by the snapshot round-trip test, fixed.
+- Note: spec's for-each-ref format strings write `%1f`/`%1e` but real git syntax needs `%x1f`/`%x1e` (a literal hex-byte escape) — section 9.5's own log format uses the correct `%x1f` form, so treated the `%1f`/`%1e` spellings elsewhere in the spec as the same shorthand. Logged in DECISIONS.md.
+- **Phase 2 acceptance (SPEC.md §13), all passing** — `packages/core/test/versions.integration.test.ts` (10 tests) against `platform-node` + temp repos: fresh-folder init, save→exactly-one-commit (+ no-op re-save, + concurrent-save serialization), snapshot create/list/restore with history intact, idea create/rename/delete (marginaliaBase, tag moves, tag+config cleanup), baseline resolution for all four kinds including a missing-at-baseline file, and autosave grouping in history.
+- `pnpm verify` passes (lint + typecheck + 54 tests + `cargo check`). App launches cleanly (`pnpm dev` smoke test); no interactive GUI click-through was done this run either — same caveat as Phase 1.
+
 ## In progress
-- Starting Phase 2: `GitClient`, `saveCommit`, snapshots, branches, history, baseline resolution, status bar, BranchMenu, HistoryPanel.
+- Starting Phase 3: milestones/highlights/gutter numbers, create/reply/resolve/edit/delete, orphaning + re-anchoring, clipboard.
 
 ## Blocked
 (none)
 
 ## Next steps
-- Phase 2 acceptance (SPEC.md §13): platform-node integration tests for init/save-commit/snapshots/branches/baseline/history grouping.
+- Phase 3 acceptance (SPEC.md §13): 1,000-iteration fuzz test (random edits never lose comment text, reconciliation stays correct), paste id-regeneration with no duplicates, jsdom highlight-rendering test for overlapping/cross-paragraph ranges.
