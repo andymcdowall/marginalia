@@ -10,6 +10,7 @@ import { HistoryPanel } from "./components/HistoryPanel.js";
 import { CommentsPanel } from "./components/CommentsPanel.js";
 import { ChangesPanel } from "./components/ChangesPanel.js";
 import { MergeView } from "./components/MergeView.js";
+import { Toolbar } from "./components/Toolbar.js";
 
 async function openAndPrepare(platform: Platform, root: string) {
   const info = await openWorkspace(platform, root);
@@ -86,6 +87,7 @@ export function App() {
 
   return (
     <div className="app-root">
+      <Toolbar />
       <div className="app-shell">
         <div className="sidebar-left">
           <FileTree root={workspace.root} />

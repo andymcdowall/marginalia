@@ -3,3 +3,6 @@
 declare const crypto: {
   getRandomValues<T extends ArrayBufferView>(array: T): T;
 };
+
+// Both runtimes also provide `btoa` as a real global (browsers always; Node since v16).
+declare function btoa(data: string): string;

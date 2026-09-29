@@ -1,7 +1,7 @@
 # Progress
 
 ## Current phase
-Phase 6: PDF export (starting)
+Phase 7: Polish (starting)
 
 ## Done
 ### Phase 0: Scaffold + spikes
@@ -61,11 +61,24 @@ Phase 6: PDF export (starting)
 - **Phase 5 acceptance (SPEC.md §13), all passing** — `packages/core/test/merge.integration.test.ts` (11 tests): clean merge; text conflict resolved by ours/theirs/both (plus a diff3-marker-shape check); independent thread additions unioning with no surfaced conflict (real git line-merge subtlety hit and fixed along the way — see DECISIONS.md); same-thread replies on both sides unioning; later-`updated`-wins status conflict; abort restoring pre-merge HEAD and working tree; non-md conflict resolved with keep-theirs; resuming a merge (fresh `GitClient`, no in-memory state) re-deriving the identical pending conflict from git alone.
 - `pnpm verify` passes (lint + typecheck + 84 tests + `cargo check`). App launches cleanly; no interactive GUI click-through (same caveat as Phases 1–4).
 
+### Phase 6: PDF export
+- `packages/core/src/export/`: `theme.ts` (SPEC.md §11.3's theme.css, kept as a TS string constant rather than a standalone .css file — core has no bundler/`node:fs` to read one at runtime; see DECISIONS.md), `embedImages.ts` (regex-based markdown image-reference rewriter to `data:` URIs — no AST walk, since `unist-util-visit` isn't in the allowed dependency list), `toHtml.ts` (clean export), `redlineHtml.ts` (redline export with `<ins>`/`<del>`, `allowDangerousHtml`).
+- UI: `ExportDialog.tsx` (Clean/Redline + page size, wired to `platform.pdf.renderHtmlToPdf` — which is the Phase 0/Spike A **fallback** implementation: a visible preview window + native Print dialog, not silent automatic export), and finally a real `Toolbar.tsx` consolidating the previously-deferred triggers (Live/Source toggle, Comment, Redline toggle, **Snapshot** — which had no UI trigger at all before this — and Export).
+- **Phase 6 acceptance (SPEC.md §13), all passing** — `packages/core/test/export.test.ts` (5 tests): clean and redline exports contain no `comment-start`/`comment-end`/`marginalia:comments` strings and no comment body text, even when the source document has an active comment thread with a distinctive secret string in its body; redline HTML's `<ins>`/`<del>` counts match the fixture's actual hunk count (single edit → 1/1, two independent edits → 2/2, no changes → 0/0).
+- **Manual export smoke procedure** (documented here per spec, since `pnpm verify` can't drive the native print dialog):
+  1. `pnpm dev`, open a workspace folder, open a note with at least one image reference and one comment thread.
+  2. Toolbar → Export → choose **Clean** → Letter → Export → pick a save location in the OS dialog that appears.
+  3. A visible "Export preview" window should open showing the rendered note (serif body text, sans-serif headings, embedded image, **no** milestone tags or comment text visible) with a "Print…" banner at the top.
+  4. Click **Print…** → in the native print dialog, choose **PDF → Save as PDF** → confirm the saved PDF opens and looks right (theme fonts, image embedded, margins reasonable).
+  5. Repeat with **Redline** selected: the preview should additionally show a "Changes from Origin to `<branch>`" header line, with insertions underlined/green and deletions struck-through/red.
+  6. Toolbar → Snapshot → name it → confirm no error toast; Sidebar → History tab → confirm the new snapshot row appears.
+- `pnpm verify` passes (lint + typecheck + 89 tests + `cargo check`). App launches cleanly; the automated GUI-click-through caveat from Phases 1–5 now specifically includes **not having run the manual procedure above** — flagging this explicitly since PDF export was the single riskiest, most novel part of the whole spec (Spike A's saga) and deserves an actual human check before being trusted.
+
 ## In progress
-- Starting Phase 6: export dialog, `toHtml`/`redlineHtml`, `theme.css`, wiring to `pdf_render` (the fallback preview-window path from Phase 0/Spike A, not silent automatic export).
+- Starting Phase 7: settings (autosave delay, default page size) in `AppStore`, Cmd+/ shortcut sheet, git-missing screen, quit flush, error toasts, final TODO sweep.
 
 ## Blocked
 (none)
 
 ## Next steps
-- Phase 6 acceptance (SPEC.md §13): exported HTML (clean and redline) contains no milestone/comment-block/comment-text strings; redline HTML has matching `<ins>`/`<del>` counts for a fixture; a documented manual-export smoke procedure.
+- Phase 7 has no automated "Done when" list in SPEC.md §13 beyond building the listed items and resolving or logging every remaining TODO — treat `pnpm verify` + a final TODO sweep as the gate.

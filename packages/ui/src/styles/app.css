@@ -405,6 +405,87 @@ body {
   color: #1a7f37;
 }
 
+.toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.toolbar-filename {
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.toolbar-actions button {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 8px;
+  cursor: pointer;
+  color: inherit;
+  font-size: 12px;
+}
+
+.toolbar-actions button.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.export-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.export-dialog {
+  background: var(--bg);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 20px;
+  min-width: 280px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.export-dialog h3 {
+  margin-top: 0;
+}
+
+.export-dialog label {
+  display: block;
+  margin: 6px 0;
+  font-size: 13px;
+}
+
+.export-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.export-dialog-actions button {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 12px;
+  cursor: pointer;
+  color: inherit;
+}
+
 .merge-view {
   flex: 1 1 auto;
   overflow: auto;
