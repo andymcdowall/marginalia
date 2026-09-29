@@ -6,6 +6,8 @@ export type OpenFile = {
   threads: Thread[];
   dirty: boolean;
   lastSaved: string; // last content written to disk, for external-change comparison
+  docText: string; // read-only mirror of the CodeMirror doc, for cross-component display only
+  // (excerpts, display numbers). CodeMirror remains the source of truth for saving.
 };
 
 export type WorkspaceState = {
@@ -16,6 +18,7 @@ export type WorkspaceState = {
 };
 
 type TreeState = Record<string, DirEntry[]>; // dir path -> its direct children
+export type CommentFilter = "open" | "all";
 
 type Store = {
   workspace: WorkspaceState | null;
@@ -27,6 +30,10 @@ type Store = {
   sourceMode: boolean;
   currentBranch: string;
   branchMenuOpen: boolean;
+  activeThreadId: string | null;
+  draftThreadId: string | null;
+  commentFilter: CommentFilter;
+  sidebarTab: "comments" | "history";
 
   setWorkspace: (ws: WorkspaceState | null) => void;
   setCurrentBranch: (name: string) => void;
@@ -38,6 +45,11 @@ type Store = {
   markDirty: (dirty: boolean) => void;
   markSaved: (content: string) => void;
   setThreads: (threads: Thread[]) => void;
+  setDocText: (text: string) => void;
+  setActiveThreadId: (id: string | null) => void;
+  setDraftThreadId: (id: string | null) => void;
+  setCommentFilter: (filter: CommentFilter) => void;
+  setSidebarTab: (tab: "comments" | "history") => void;
   toggleSidebarLeft: () => void;
   toggleSidebarRight: () => void;
   toggleSourceMode: () => void;
@@ -53,6 +65,10 @@ export const useStore = create<Store>((set) => ({
   sourceMode: false,
   currentBranch: "main",
   branchMenuOpen: false,
+  activeThreadId: null,
+  draftThreadId: null,
+  commentFilter: "open",
+  sidebarTab: "comments",
 
   setWorkspace: (ws) => set({ workspace: ws, tree: {}, expandedDirs: new Set(), openFile: null }),
   setCurrentBranch: (name) => set({ currentBranch: name }),
@@ -65,12 +81,22 @@ export const useStore = create<Store>((set) => ({
       else next.add(dir);
       return { expandedDirs: next };
     }),
-  openFileAt: (path, threads, content) => set({ openFile: { path, threads, dirty: false, lastSaved: content } }),
-  closeFile: () => set({ openFile: null }),
+  openFileAt: (path, threads, content) =>
+    set({
+      openFile: { path, threads, dirty: false, lastSaved: content, docText: content },
+      activeThreadId: null,
+      draftThreadId: null,
+    }),
+  closeFile: () => set({ openFile: null, activeThreadId: null, draftThreadId: null }),
   markDirty: (dirty) => set((s) => (s.openFile ? { openFile: { ...s.openFile, dirty } } : {})),
   markSaved: (content) =>
     set((s) => (s.openFile ? { openFile: { ...s.openFile, dirty: false, lastSaved: content } } : {})),
   setThreads: (threads) => set((s) => (s.openFile ? { openFile: { ...s.openFile, threads } } : {})),
+  setDocText: (text) => set((s) => (s.openFile ? { openFile: { ...s.openFile, docText: text } } : {})),
+  setActiveThreadId: (id) => set({ activeThreadId: id }),
+  setDraftThreadId: (id) => set({ draftThreadId: id }),
+  setCommentFilter: (filter) => set({ commentFilter: filter }),
+  setSidebarTab: (tab) => set({ sidebarTab: tab }),
   toggleSidebarLeft: () => set((s) => ({ sidebarLeftCollapsed: !s.sidebarLeftCollapsed })),
   toggleSidebarRight: () => set((s) => ({ sidebarRightCollapsed: !s.sidebarRightCollapsed })),
   toggleSourceMode: () => set((s) => ({ sourceMode: !s.sourceMode })),

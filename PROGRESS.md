@@ -1,7 +1,7 @@
 # Progress
 
 ## Current phase
-Phase 3: Comments (starting)
+Phase 4: Redline (starting)
 
 ## Done
 ### Phase 0: Scaffold + spikes
@@ -34,11 +34,22 @@ Phase 3: Comments (starting)
 - **Phase 2 acceptance (SPEC.md §13), all passing** — `packages/core/test/versions.integration.test.ts` (10 tests) against `platform-node` + temp repos: fresh-folder init, save→exactly-one-commit (+ no-op re-save, + concurrent-save serialization), snapshot create/list/restore with history intact, idea create/rename/delete (marginaliaBase, tag moves, tag+config cleanup), baseline resolution for all four kinds including a missing-at-baseline file, and autosave grouping in history.
 - `pnpm verify` passes (lint + typecheck + 54 tests + `cargo check`). App launches cleanly (`pnpm dev` smoke test); no interactive GUI click-through was done this run either — same caveat as Phase 1.
 
+### Phase 3: Comments
+- `packages/core`: extracted `reconcileThreads`/`isThreadRangeValid` into `comments/reconcile.ts` (shared between file parsing and live in-editor reconciliation), plus `comments/displayNumbers.ts` and `comments/paste.ts` (id regeneration).
+- Editor: `commentHighlights.ts` (highlight marks for open threads, gutter display-number widgets, active-thread class; resolved threads get a number but no highlight per §8.1/§5.6), `comments.ts` (insert/remove/re-anchor tag transactions), `clipboard.ts` (copy/cut puts clean text + `application/x-marginalia` JSON; paste regenerates ids).
+- UI: `CommentsPanel.tsx` (thread cards, excerpt, reply, resolve/reopen, delete thread/comment, Open/All filter, Detached-comments section with re-anchor), wired into a new sidebar tab switcher (Comments/History) in `App.tsx`. Comment creation is Cmd+Shift+M (simplified from the spec's draft-textarea-in-panel flow — see DECISIONS.md).
+- **Phase 3 acceptance (SPEC.md §13), all passing:**
+  - Fuzz test: 1,000 random insert/delete edits (including whole-tag deletion) over 5 overlapping ranges never lose comment body text, and status always matches milestone validity — `packages/core/test/commentsFuzz.test.ts`.
+  - Paste id regeneration: every milestone/thread/comment id regenerated, no duplicates (single large slice and per-slice checks) — `packages/core/test/paste.test.ts` (2 tests).
+  - Overlapping/cross-paragraph highlight rendering (jsdom): separate marks per overlapping range, correct display numbers, cross-paragraph range renders, active class, resolved-thread has a number but no highlight — `packages/ui/test/commentHighlights.test.ts` (3 tests).
+- `pnpm verify` passes (lint + typecheck + 60 tests + `cargo check`). App launches cleanly; no interactive GUI click-through (same caveat as Phases 1–2).
+- Known gaps, logged rather than silently skipped: no `Toolbar.tsx` yet (Comment button reachable only via Cmd+Shift+M; Live/Source toggle has no UI button yet either, though the underlying `sourceMode` field/toggle exists); no Snapshot-creation UI trigger yet (the `createSnapshot` core function is tested but nothing in the UI calls it — `BranchMenu`'s idea-creation flow is the only wired write action for versions right now).
+
 ## In progress
-- Starting Phase 3: milestones/highlights/gutter numbers, create/reply/resolve/edit/delete, orphaning + re-anchoring, clipboard.
+- Starting Phase 4: cleanText/position-map, tokenize, wordDiff, the redline field and widgets, Changes panel, baseline picker, revert.
 
 ## Blocked
 (none)
 
 ## Next steps
-- Phase 3 acceptance (SPEC.md §13): 1,000-iteration fuzz test (random edits never lose comment text, reconciliation stays correct), paste id-regeneration with no duplicates, jsdom highlight-rendering test for overlapping/cross-paragraph ranges.
+- Phase 4 acceptance (SPEC.md §13): revert property test (500 cases), comment add/remove produces zero hunks, cleanText map tests, 10k-word/200-hunk diff recompute benchmark under 50ms.

@@ -5,11 +5,13 @@ import { search, searchKeymap } from "@codemirror/search";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { GFM } from "@lezer/markdown";
+import type { Thread } from "@marginalia/core";
 import { milestonesField } from "./milestones.js";
 import { livePreview } from "./livePreview.js";
 import { frontmatterField } from "./frontmatter.js";
 import { editorTheme } from "./theme.js";
 import { sourceModeField } from "./sourceMode.js";
+import { threadsField, activeThreadIdField, commentHighlights } from "./commentHighlights.js";
 
 function wrapSelection(before: string, after: string): (view: EditorView) => boolean {
   return (view) => {
@@ -53,7 +55,7 @@ export function markdownExtensions(): Extension {
   return markdown({ base: markdownLanguage, codeLanguages: languages, extensions: [GFM] });
 }
 
-export function editorSetup(): Extension[] {
+export function editorSetup(initialThreads: Thread[] = []): Extension[] {
   return [
     history(),
     keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, ...formattingKeymap]),
@@ -63,6 +65,9 @@ export function editorSetup(): Extension[] {
     sourceModeField,
     frontmatterField,
     milestonesField,
+    threadsField.init(() => initialThreads),
+    activeThreadIdField,
+    commentHighlights,
     livePreview,
     editorTheme,
   ];

@@ -54,6 +54,12 @@ export const editorTheme = EditorView.theme({
   },
   ".cm-comment": { backgroundColor: "rgba(240, 200, 0, 0.25)" },
   ".cm-comment-active": { backgroundColor: "rgba(240, 160, 0, 0.4)" },
+  ".cm-comment-number": {
+    cursor: "pointer",
+    color: "var(--accent)",
+    fontWeight: "600",
+    marginLeft: "1px",
+  },
   ".cm-ins": {
     textDecoration: "underline",
     textDecorationColor: "#1a7f37",

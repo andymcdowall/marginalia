@@ -7,6 +7,7 @@ import { FileTree } from "./components/FileTree.js";
 import { EditorPane } from "./components/EditorPane.js";
 import { StatusBar } from "./components/StatusBar.js";
 import { HistoryPanel } from "./components/HistoryPanel.js";
+import { CommentsPanel } from "./components/CommentsPanel.js";
 
 async function openAndPrepare(platform: Platform, root: string) {
   const info = await openWorkspace(platform, root);
@@ -22,6 +23,8 @@ export function App() {
   const setWorkspace = useStore((s) => s.setWorkspace);
   const setCurrentBranch = useStore((s) => s.setCurrentBranch);
   const sidebarRightCollapsed = useStore((s) => s.sidebarRightCollapsed);
+  const sidebarTab = useStore((s) => s.sidebarTab);
+  const setSidebarTab = useStore((s) => s.setSidebarTab);
 
   useEffect(() => {
     void (async () => {
@@ -68,7 +71,15 @@ export function App() {
         </div>
         {!sidebarRightCollapsed && (
           <div className="sidebar-right">
-            <HistoryPanel />
+            <div className="sidebar-tabs">
+              <button type="button" className={sidebarTab === "comments" ? "active" : ""} onClick={() => setSidebarTab("comments")}>
+                Comments
+              </button>
+              <button type="button" className={sidebarTab === "history" ? "active" : ""} onClick={() => setSidebarTab("history")}>
+                History
+              </button>
+            </div>
+            {sidebarTab === "comments" ? <CommentsPanel /> : <HistoryPanel />}
           </div>
         )}
       </div>

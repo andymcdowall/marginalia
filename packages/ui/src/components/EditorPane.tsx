@@ -1,12 +1,20 @@
 import { useEffect, useRef } from "react";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { joinFile, splitFile } from "@marginalia/core";
+import { joinFile, splitFile, type Thread } from "@marginalia/core";
 import { editorSetup } from "../editor/setup.js";
+import { setThreads, setActiveThreadId } from "../editor/commentHighlights.js";
+import { insertCommentTags, removeCommentTags } from "../editor/comments.js";
+import { clipboardHandlers } from "../editor/clipboard.js";
 import { usePlatform } from "../platformContext.js";
 import { useStore } from "../store.js";
 
 const AUTOSAVE_DEBOUNCE_MS = 1500;
+
+// A pragmatic escape hatch for the few actions (re-anchor) that other sidebar panels need to run
+// directly against the live CodeMirror view, rather than plumbing a ref through context for one
+// use — see DECISIONS.md.
+export const activeEditorView: { current: EditorView | null } = { current: null };
 
 export function EditorPane() {
   const platform = usePlatform();
@@ -41,11 +49,37 @@ export function EditorPane() {
       saveTimer = setTimeout(() => void doSave(), AUTOSAVE_DEBOUNCE_MS);
     }
 
+    function handleCreateComment(): void {
+      const view = viewRef.current;
+      if (!view || view.state.selection.main.empty) return;
+      // Simplified from SPEC.md §8.2's "focus a draft textarea in the Comments panel": that needs
+      // live cross-component focus coordination this pass doesn't build. A synchronous prompt
+      // gets the same create/cancel-removes-tags behavior with far less plumbing — see
+      // DECISIONS.md.
+      const body = window.prompt("Comment:");
+      const id = insertCommentTags(view);
+      if (!id) return;
+      if (!body) {
+        removeCommentTags(view, id);
+        return;
+      }
+      const now = new Date().toISOString();
+      const newThread: Thread = { id, status: "open", updated: now, comments: [{ id: `${id}-c1`, created: now, body }] };
+      const current = useStore.getState().openFile;
+      if (current) useStore.getState().setThreads([...current.threads, newThread]);
+      useStore.getState().setActiveThreadId(id);
+    }
+
     function handleKeyDown(e: KeyboardEvent): void {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
         e.preventDefault();
         if (saveTimer) clearTimeout(saveTimer);
         void doSave();
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "m") {
+        e.preventDefault();
+        handleCreateComment();
       }
     }
     function handleBlur(): void {
@@ -63,30 +97,56 @@ export function EditorPane() {
       const state = EditorState.create({
         doc: parsed.body,
         extensions: [
-          ...editorSetup(),
+          ...editorSetup(parsed.threads),
+          clipboardHandlers(
+            () => useStore.getState().openFile?.threads ?? [],
+            (pastedThreads) => {
+              const current = useStore.getState().openFile;
+              if (current) useStore.getState().setThreads([...current.threads, ...pastedThreads]);
+            }
+          ),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {
               markDirty(true);
               scheduleSave();
+              useStore.getState().setDocText(update.state.doc.toString());
             }
           }),
         ],
       });
       viewRef.current = new EditorView({ state, parent: containerRef.current! });
+      activeEditorView.current = viewRef.current;
       window.addEventListener("keydown", handleKeyDown);
       window.addEventListener("blur", handleBlur);
       unsubscribeQuit = platform.onBeforeQuit(doSave);
     })();
+
+    // Pushes external thread/active-thread changes (from CommentsPanel/HistoryPanel actions)
+    // into the live CodeMirror state without remounting the editor.
+    const unsubscribeStore = useStore.subscribe((state, prevState) => {
+      const view = viewRef.current;
+      if (!view) return;
+      const effects = [];
+      if (state.openFile?.threads !== prevState.openFile?.threads) {
+        effects.push(setThreads.of(state.openFile?.threads ?? []));
+      }
+      if (state.activeThreadId !== prevState.activeThreadId) {
+        effects.push(setActiveThreadId.of(state.activeThreadId));
+      }
+      if (effects.length) view.dispatch({ effects });
+    });
 
     return () => {
       cancelled = true;
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("blur", handleBlur);
       unsubscribeQuit?.();
+      unsubscribeStore();
       if (saveTimer) clearTimeout(saveTimer);
       void doSave();
       viewRef.current?.destroy();
       viewRef.current = null;
+      activeEditorView.current = null;
     };
   }, [openFile?.path]);
 
