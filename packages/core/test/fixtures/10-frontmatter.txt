@@ -1,0 +1,16 @@
+---
+title: Fixture
+date: 2026-01-01
+---
+
+# Doc
+
+A <comment-start id="q00001"/>range<comment-end id="q00001"/> after frontmatter.
+
+<!-- marginalia:comments
+<comments>
+  <thread id="q00001" status="open" updated="2026-01-01T00:00:00-05:00">
+    <comment id="r00001" created="2026-01-01T00:00:00-05:00">Noted.</comment>
+  </thread>
+</comments>
+-->

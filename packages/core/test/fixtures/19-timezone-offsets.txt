@@ -1,0 +1,11 @@
+A <comment-start id="d10001"/>range<comment-end id="d10001"/> with varied offsets.
+
+<!-- marginalia:comments
+<comments>
+  <thread id="d10001" status="open" updated="2026-03-01T12:00:00Z">
+    <comment id="d10002" created="2026-03-01T09:00:00-05:00">Eastern.</comment>
+    <comment id="d10003" created="2026-03-01T22:30:00+05:30">IST.</comment>
+    <comment id="d10004" created="2026-03-01T12:00:00Z">UTC.</comment>
+  </thread>
+</comments>
+-->

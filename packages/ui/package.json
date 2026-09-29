@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "main": "src/main.tsx",
-  "types": "src/App.tsx",
+  "types": "src/main.tsx",
   "scripts": {
     "build": "tsc -b",
     "test": "vitest run"
@@ -22,7 +22,8 @@
     "@codemirror/language-data": "^6.5.1",
     "@codemirror/search": "^6.5.8",
     "@lezer/markdown": "^1.4.0",
-    "@lezer/highlight": "^1.2.1"
+    "@lezer/highlight": "^1.2.1",
+    "@lezer/common": "^1.2.1"
   },
   "devDependencies": {
     "@types/react": "^18.3.14",

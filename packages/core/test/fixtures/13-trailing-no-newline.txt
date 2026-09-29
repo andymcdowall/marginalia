@@ -1,0 +1,8 @@
+Body with no trailing newline and a <comment-start id="w00001"/>range<comment-end id="w00001"/> in it
+<!-- marginalia:comments
+<comments>
+  <thread id="w00001" status="open" updated="2026-01-01T00:00:00-05:00">
+    <comment id="x00001" created="2026-01-01T00:00:00-05:00">No trailing newline in body.</comment>
+  </thread>
+</comments>
+-->

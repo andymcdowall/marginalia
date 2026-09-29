@@ -1,0 +1,9 @@
+A <comment-start id="a10001"/>range<comment-end id="a10001"/> with dashes in the reply.
+
+<!-- marginalia:comments
+<comments>
+  <thread id="a10001" status="open" updated="2026-01-01T00:00:00-05:00">
+    <comment id="a10002" created="2026-01-01T00:00:00-05:00">-&#45;&#45;five-&#45;&#45;dashes-&#45;&#45;, and -&#45;&#45;&#45;four more-&#45;&#45;&#45;.</comment>
+  </thread>
+</comments>
+-->

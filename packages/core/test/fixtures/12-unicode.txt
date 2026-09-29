@@ -1,0 +1,9 @@
+Café, 日本語, emoji 🎉 and <comment-start id="u00001"/>a highlighted café menu 🍜<comment-end id="u00001"/> here.
+
+<!-- marginalia:comments
+<comments>
+  <thread id="u00001" status="open" updated="2026-01-01T00:00:00-05:00">
+    <comment id="v00001" created="2026-01-01T00:00:00-05:00">コメント: 美味しい 🎉</comment>
+  </thread>
+</comments>
+-->

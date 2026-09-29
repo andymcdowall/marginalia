@@ -11,5 +11,8 @@
   },
   "dependencies": {
     "@marginalia/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2"
   }
 }

@@ -1,0 +1,12 @@
+Text <comment-start id="g00001"/>with an <comment-start id="g00002"/>overlapping<comment-end id="g00001"/> pair<comment-end id="g00002"/> of ranges.
+
+<!-- marginalia:comments
+<comments>
+  <thread id="g00001" status="open" updated="2026-01-01T00:00:00-05:00">
+    <comment id="h00001" created="2026-01-01T00:00:00-05:00">Outer.</comment>
+  </thread>
+  <thread id="g00002" status="open" updated="2026-01-01T00:00:00-05:00">
+    <comment id="h00002" created="2026-01-01T00:00:00-05:00">Inner.</comment>
+  </thread>
+</comments>
+-->

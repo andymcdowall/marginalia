@@ -1,0 +1,11 @@
+A <comment-start id="cccccc"/>range<comment-end id="cccccc"/> with replies.
+
+<!-- marginalia:comments
+<comments>
+  <thread id="cccccc" status="open" updated="2026-01-01T00:00:00-05:00">
+    <comment id="d1d1d1" created="2026-01-01T00:00:00-05:00">First.</comment>
+    <comment id="d2d2d2" created="2026-01-01T00:00:00-05:00">Second.</comment>
+    <comment id="d3d3d3" created="2026-01-01T00:00:00-05:00">Third.</comment>
+  </thread>
+</comments>
+-->

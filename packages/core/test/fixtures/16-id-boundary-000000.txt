@@ -1,0 +1,9 @@
+A <comment-start id="000000"/>range<comment-end id="000000"/> with the lowest id.
+
+<!-- marginalia:comments
+<comments>
+  <thread id="000000" status="open" updated="2026-01-01T00:00:00-05:00">
+    <comment id="a20001" created="2026-01-01T00:00:00-05:00">Lowest id.</comment>
+  </thread>
+</comments>
+-->

@@ -1,0 +1,9 @@
+A <comment-start id="zzzzzz"/>range<comment-end id="zzzzzz"/> with the highest id.
+
+<!-- marginalia:comments
+<comments>
+  <thread id="zzzzzz" status="open" updated="2026-01-01T00:00:00-05:00">
+    <comment id="a30001" created="2026-01-01T00:00:00-05:00">Highest id.</comment>
+  </thread>
+</comments>
+-->

@@ -1,0 +1,11 @@
+Line one.
+Line two with <comment-start id="s00001"/>a range<comment-end id="s00001"/>.
+Line three.
+
+<!-- marginalia:comments
+<comments>
+  <thread id="s00001" status="open" updated="2026-01-01T00:00:00-05:00">
+    <comment id="t00001" created="2026-01-01T00:00:00-05:00">CRLF preserved?</comment>
+  </thread>
+</comments>
+-->

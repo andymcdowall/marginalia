@@ -1,0 +1,7 @@
+Body text.
+<!-- marginalia:comments
+<comments>
+  <thread id="aaaaaa" status="open" updated="2026-01-01T00:00:00Z">
+    <comment id="bbbbbb" created="2026-01-01T00:00:00Z">Hi</comment>
+  </thread>
+</comments>

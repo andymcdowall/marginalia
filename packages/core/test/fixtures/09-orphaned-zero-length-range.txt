@@ -1,0 +1,9 @@
+Text with <comment-start id="o00001"/><comment-end id="o00001"/> touching tags.
+
+<!-- marginalia:comments
+<comments>
+  <thread id="o00001" status="orphaned" updated="2026-01-01T00:00:00-05:00">
+    <comment id="p00001" created="2026-01-01T00:00:00-05:00">Empty range.</comment>
+  </thread>
+</comments>
+-->

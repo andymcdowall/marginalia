@@ -1,0 +1,9 @@
+A <comment-start id="i00001"/>resolved range<comment-end id="i00001"/>.
+
+<!-- marginalia:comments
+<comments>
+  <thread id="i00001" status="resolved" updated="2026-01-01T00:00:00-05:00">
+    <comment id="j00001" created="2026-01-01T00:00:00-05:00">Fixed.</comment>
+  </thread>
+</comments>
+-->

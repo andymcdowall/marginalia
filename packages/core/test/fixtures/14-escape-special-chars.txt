@@ -1,0 +1,10 @@
+Some <comment-start id="y00001"/>range<comment-end id="y00001"/> with special comment text.
+
+<!-- marginalia:comments
+<comments>
+  <thread id="y00001" status="open" updated="2026-01-01T00:00:00-05:00">
+    <comment id="z00001" created="2026-01-01T00:00:00-05:00">Has &amp; &lt; &gt; &quot; chars.</comment>
+    <comment id="z00002" created="2026-09-28T20:31:00-05:00">Confirmed **March 14**.&#10;&#10;Second paragraph.</comment>
+  </thread>
+</comments>
+-->

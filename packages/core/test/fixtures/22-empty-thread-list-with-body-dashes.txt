@@ -1,0 +1,1 @@
+A body with a lone --- dash sequence and no threads at all.

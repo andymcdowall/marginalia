@@ -1,25 +1,12 @@
-import { EditorState, StateField, StateEffect, RangeSetBuilder } from "@codemirror/state";
+import { EditorState, StateField, RangeSetBuilder } from "@codemirror/state";
 import { Decoration, type DecorationSet, EditorView } from "@codemirror/view";
+import { findMilestones } from "@marginalia/core";
+import { isSourceMode } from "./sourceMode.js";
 
-export const MILESTONE_RE = /<comment-(start|end) id="([a-z0-9]{6})"\/>/g;
+export { setSourceMode } from "./sourceMode.js";
 
-export type Milestone = { kind: "start" | "end"; id: string; from: number; to: number };
-
-export function findMilestones(doc: string): Milestone[] {
-  const out: Milestone[] = [];
-  for (const m of doc.matchAll(MILESTONE_RE)) {
-    const kind = m[1] as "start" | "end";
-    const id = m[2]!;
-    const from = m.index!;
-    out.push({ kind, id, from, to: from + m[0].length });
-  }
-  return out;
-}
-
-export const setSourceMode = StateEffect.define<boolean>();
-
-function buildDecorations(state: EditorState, sourceMode: boolean): DecorationSet {
-  if (sourceMode) return Decoration.none;
+function buildDecorations(state: EditorState): DecorationSet {
+  if (isSourceMode(state)) return Decoration.none;
   const doc = state.doc.toString();
   const milestones = findMilestones(doc);
   const builder = new RangeSetBuilder<Decoration>();
@@ -29,23 +16,16 @@ function buildDecorations(state: EditorState, sourceMode: boolean): DecorationSe
   return builder.finish();
 }
 
-export const milestonesField = StateField.define<{ sourceMode: boolean; decorations: DecorationSet }>({
+export const milestonesField = StateField.define<DecorationSet>({
   create(state) {
-    const sourceMode = false;
-    return { sourceMode, decorations: buildDecorations(state, sourceMode) };
+    return buildDecorations(state);
   },
   update(value, tr) {
-    let sourceMode = value.sourceMode;
-    for (const effect of tr.effects) {
-      if (effect.is(setSourceMode)) sourceMode = effect.value;
-    }
-    if (!tr.docChanged && sourceMode === value.sourceMode) {
-      return value;
-    }
-    return { sourceMode, decorations: buildDecorations(tr.state, sourceMode) };
+    if (!tr.docChanged && !tr.effects.length) return value;
+    return buildDecorations(tr.state);
   },
   provide: (field) => [
-    EditorView.decorations.from(field, (value) => value.decorations),
-    EditorView.atomicRanges.of((view) => view.state.field(field).decorations),
+    EditorView.decorations.from(field),
+    EditorView.atomicRanges.of((view) => view.state.field(field)),
   ],
 });

@@ -1,0 +1,26 @@
+Intro paragraph.
+<comment-start id="b10001"/>First range<comment-end id="b10001"/>.
+<comment-start id="b10002"/>Second range<comment-end id="b10002"/>.
+<comment-start id="b10003"/>Third range<comment-end id="b10003"/>.
+<comment-start id="b10004"/>Fourth range<comment-end id="b10004"/>.
+No milestones for the fifth thread anymore.
+
+<!-- marginalia:comments
+<comments>
+  <thread id="b10001" status="open" updated="2026-01-01T00:00:00-05:00">
+    <comment id="c10001" created="2026-01-01T00:00:00-05:00">One.</comment>
+  </thread>
+  <thread id="b10002" status="resolved" updated="2026-01-01T00:00:00-05:00">
+    <comment id="c10002" created="2026-01-01T00:00:00-05:00">Two.</comment>
+  </thread>
+  <thread id="b10003" status="open" updated="2026-01-01T00:00:00-05:00">
+    <comment id="c10003" created="2026-01-01T00:00:00-05:00">Three.</comment>
+  </thread>
+  <thread id="b10004" status="resolved" updated="2026-01-01T00:00:00-05:00">
+    <comment id="c10004" created="2026-01-01T00:00:00-05:00">Four.</comment>
+  </thread>
+  <thread id="b10005" status="orphaned" updated="2026-01-01T00:00:00-05:00">
+    <comment id="c10005" created="2026-01-01T00:00:00-05:00">Five, orphaned.</comment>
+  </thread>
+</comments>
+-->

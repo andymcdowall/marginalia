@@ -1,0 +1,9 @@
+Text with no milestones left at all.
+
+<!-- marginalia:comments
+<comments>
+  <thread id="k00001" status="orphaned" updated="2026-01-01T00:00:00-05:00">
+    <comment id="l00001" created="2026-01-01T00:00:00-05:00">Where did this go?</comment>
+  </thread>
+</comments>
+-->

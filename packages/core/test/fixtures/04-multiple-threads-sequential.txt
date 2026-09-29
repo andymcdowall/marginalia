@@ -1,0 +1,12 @@
+One <comment-start id="e00001"/>range<comment-end id="e00001"/> then another <comment-start id="e00002"/>range<comment-end id="e00002"/>.
+
+<!-- marginalia:comments
+<comments>
+  <thread id="e00001" status="open" updated="2026-01-01T00:00:00-05:00">
+    <comment id="f00001" created="2026-01-01T00:00:00-05:00">First thread.</comment>
+  </thread>
+  <thread id="e00002" status="open" updated="2026-01-01T00:00:00-05:00">
+    <comment id="f00002" created="2026-01-01T00:00:00-05:00">Second thread.</comment>
+  </thread>
+</comments>
+-->

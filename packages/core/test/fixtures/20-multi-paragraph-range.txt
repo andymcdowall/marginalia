@@ -1,0 +1,13 @@
+A <comment-start id="e10001"/>range that starts here
+
+continues through a second paragraph
+
+and ends here<comment-end id="e10001"/>.
+
+<!-- marginalia:comments
+<comments>
+  <thread id="e10001" status="open" updated="2026-01-01T00:00:00-05:00">
+    <comment id="e10002" created="2026-01-01T00:00:00-05:00">Spans paragraphs.</comment>
+  </thread>
+</comments>
+-->

@@ -35,4 +35,51 @@ body {
 
 .empty-state {
   margin: auto;
+  color: var(--fg);
+  opacity: 0.7;
+}
+
+.sidebar-left {
+  width: 240px;
+  flex: 0 0 auto;
+  overflow: auto;
+  border-right: 1px solid var(--border);
+}
+
+.editor-area {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.editor-pane {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.editor-pane .cm-editor {
+  height: 100%;
+}
+
+.file-tree {
+  font-size: 13px;
+  padding: 8px 0;
+}
+
+.file-tree-empty {
+  padding: 8px 12px;
+  opacity: 0.6;
+  font-size: 13px;
+}
+
+.file-tree-row {
+  padding: 3px 12px;
+  white-space: nowrap;
+  cursor: default;
+  user-select: none;
+}
+
+.file-tree-row:hover {
+  background: var(--border);
 }

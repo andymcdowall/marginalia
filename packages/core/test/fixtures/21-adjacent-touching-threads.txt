@@ -1,0 +1,12 @@
+Text <comment-start id="f10001"/>range A<comment-end id="f10001"/><comment-start id="f10002"/>range B<comment-end id="f10002"/> end.
+
+<!-- marginalia:comments
+<comments>
+  <thread id="f10001" status="open" updated="2026-01-01T00:00:00-05:00">
+    <comment id="f10003" created="2026-01-01T00:00:00-05:00">A.</comment>
+  </thread>
+  <thread id="f10002" status="open" updated="2026-01-01T00:00:00-05:00">
+    <comment id="f10004" created="2026-01-01T00:00:00-05:00">B.</comment>
+  </thread>
+</comments>
+-->

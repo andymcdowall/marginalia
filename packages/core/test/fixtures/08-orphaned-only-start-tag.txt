@@ -1,0 +1,9 @@
+Text with a dangling <comment-start id="m00001"/>tag and nothing else.
+
+<!-- marginalia:comments
+<comments>
+  <thread id="m00001" status="orphaned" updated="2026-01-01T00:00:00-05:00">
+    <comment id="n00001" created="2026-01-01T00:00:00-05:00">Missing end tag.</comment>
+  </thread>
+</comments>
+-->
