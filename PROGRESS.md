@@ -1,7 +1,7 @@
 # Progress
 
 ## Current phase
-Phase 5: Merge (starting)
+Phase 6: PDF export (starting)
 
 ## Done
 ### Phase 0: Scaffold + spikes
@@ -55,11 +55,17 @@ Phase 5: Merge (starting)
   - 10,000-word/200-hunk diff recompute benchmark, under 50ms (see DECISIONS.md re: warmup + best-of-N against shared-machine test-suite noise).
 - `pnpm verify` passes (lint + typecheck + 69 tests + `cargo check`), stable across repeated full-suite runs. App launches cleanly; no interactive GUI click-through (same caveat as Phases 1–3).
 
+### Phase 5: Merge
+- `packages/core`: `comments/mergeThreads.ts` (union by id; same-id comment edit conflicts favor ours; later `updated` wins on status; deleted-on-one-side-unchanged-on-other stays deleted), `versions/merge.ts` (`startMerge`/`resumeMerge`/`abortMerge`/`finishMerge`/`keepOurs|TheirsNonMd`/`markResolved`), `versions/diff3.ts` (pure diff3-marker parser + resolution renderer for ours/theirs/both/edit).
+- UI: `MergeView.tsx` (replaces the editor area during a merge; per-file conflict cards, per-hunk Take ours/theirs/both/Edit, Mark resolved, Finish/Abort merge), wired into `App.tsx` (checks `.git/MERGE_HEAD` on every workspace open — including a fresh app launch — and calls `resumeMerge` if one's in progress) and `BranchMenu.tsx` (new "Merge into current" action, persists the source idea's name via `AppStore` so a restart can resume without knowing it from memory).
+- **Phase 5 acceptance (SPEC.md §13), all passing** — `packages/core/test/merge.integration.test.ts` (11 tests): clean merge; text conflict resolved by ours/theirs/both (plus a diff3-marker-shape check); independent thread additions unioning with no surfaced conflict (real git line-merge subtlety hit and fixed along the way — see DECISIONS.md); same-thread replies on both sides unioning; later-`updated`-wins status conflict; abort restoring pre-merge HEAD and working tree; non-md conflict resolved with keep-theirs; resuming a merge (fresh `GitClient`, no in-memory state) re-deriving the identical pending conflict from git alone.
+- `pnpm verify` passes (lint + typecheck + 84 tests + `cargo check`). App launches cleanly; no interactive GUI click-through (same caveat as Phases 1–4).
+
 ## In progress
-- Starting Phase 5: `mergeThreads`, the merge flow (`merge.ts`), `MergeView`, abort.
+- Starting Phase 6: export dialog, `toHtml`/`redlineHtml`, `theme.css`, wiring to `pdf_render` (the fallback preview-window path from Phase 0/Spike A, not silent automatic export).
 
 ## Blocked
 (none)
 
 ## Next steps
-- Phase 5 acceptance (SPEC.md §13): integration tests for clean merge, text conflict (ours/theirs/both), independent thread additions uniting without conflict, same-thread replies on both sides uniting, later-`updated`-wins status conflict, abort restoring pre-merge state, non-md conflict keep-theirs, and resuming a merge after an app restart.
+- Phase 6 acceptance (SPEC.md §13): exported HTML (clean and redline) contains no milestone/comment-block/comment-text strings; redline HTML has matching `<ins>`/`<del>` counts for a fixture; a documented manual-export smoke procedure.

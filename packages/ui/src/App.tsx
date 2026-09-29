@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from "react";
-import { GitClient, SaveCommit, currentBranch as gitCurrentBranch, getLastWorkspace, openWorkspace } from "@marginalia/core";
+import { GitClient, SaveCommit, currentBranch as gitCurrentBranch, getLastWorkspace, openWorkspace, resumeMerge } from "@marginalia/core";
 import type { Platform } from "@marginalia/core";
 import { usePlatform } from "./platformContext.js";
 import { useStore } from "./store.js";
@@ -9,6 +9,7 @@ import { StatusBar } from "./components/StatusBar.js";
 import { HistoryPanel } from "./components/HistoryPanel.js";
 import { CommentsPanel } from "./components/CommentsPanel.js";
 import { ChangesPanel } from "./components/ChangesPanel.js";
+import { MergeView } from "./components/MergeView.js";
 
 async function openAndPrepare(platform: Platform, root: string) {
   const info = await openWorkspace(platform, root);
@@ -26,6 +27,17 @@ export function App() {
   const sidebarRightCollapsed = useStore((s) => s.sidebarRightCollapsed);
   const sidebarTab = useStore((s) => s.sidebarTab);
   const setSidebarTab = useStore((s) => s.setSidebarTab);
+  const mergeResult = useStore((s) => s.mergeResult);
+  const setMerge = useStore((s) => s.setMerge);
+
+  // SPEC.md §9.4/§6: "Merge in progress: if .git/MERGE_HEAD exists, open the Merge view
+  // immediately" — re-derives conflict state from git alone (works across an app restart).
+  async function checkForInProgressMerge(platform: Platform, ws: { git: GitClient }, branch: string): Promise<void> {
+    if (!(await ws.git.isMergeInProgress())) return;
+    const source = (await platform.store.get<string>("mergeSource")) ?? "idea";
+    const result = await resumeMerge(platform, ws.git, source, branch);
+    setMerge(source, result);
+  }
 
   useEffect(() => {
     void (async () => {
@@ -35,6 +47,7 @@ export function App() {
         const { workspace: ws, branch } = await openAndPrepare(platform, last);
         setWorkspace(ws);
         setCurrentBranch(branch);
+        await checkForInProgressMerge(platform, ws, branch);
       } catch {
         // The remembered workspace is gone or declined re-init; let the user pick again.
       }
@@ -47,6 +60,7 @@ export function App() {
     const { workspace: ws, branch } = await openAndPrepare(platform, root);
     setWorkspace(ws);
     setCurrentBranch(branch);
+    await checkForInProgressMerge(platform, ws, branch);
   }, [platform, setWorkspace, setCurrentBranch]);
 
   if (!workspace) {
@@ -57,6 +71,15 @@ export function App() {
             Open folder
           </button>
         </div>
+      </div>
+    );
+  }
+
+  if (mergeResult && mergeResult.kind === "conflicts") {
+    return (
+      <div className="app-root">
+        <MergeView />
+        <StatusBar />
       </div>
     );
   }

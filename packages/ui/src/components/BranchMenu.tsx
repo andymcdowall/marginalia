@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
-import { createBranch, deleteBranch, listBranches, renameBranch, switchBranch, type BranchInfo } from "@marginalia/core";
+import { createBranch, deleteBranch, listBranches, renameBranch, switchBranch, startMerge, type BranchInfo } from "@marginalia/core";
 import { usePlatform } from "../platformContext.js";
 import { useStore } from "../store.js";
 
-// SPEC.md §9.3. "Merge into current…" is Phase 5 (needs mergeThreads/MergeView) — omitted here.
 export function BranchMenu({ onClose }: { onClose: () => void }) {
   const platform = usePlatform();
   const workspace = useStore((s) => s.workspace);
   const currentBranch = useStore((s) => s.currentBranch);
   const setCurrentBranch = useStore((s) => s.setCurrentBranch);
   const closeFile = useStore((s) => s.closeFile);
+  const setMerge = useStore((s) => s.setMerge);
   const [branches, setBranches] = useState<BranchInfo[]>([]);
 
   useEffect(() => {
@@ -60,6 +60,13 @@ export function BranchMenu({ onClose }: { onClose: () => void }) {
     await refresh();
   }
 
+  async function handleMerge(name: string): Promise<void> {
+    onClose();
+    await platform.store.set("mergeSource", name);
+    const result = await startMerge(platform, workspace!.git, workspace!.saveCommit, name, currentBranch);
+    setMerge(name, result);
+  }
+
   return (
     <div className="branch-menu">
       <div className="branch-menu-list">
@@ -73,9 +80,14 @@ export function BranchMenu({ onClose }: { onClose: () => void }) {
                 Rename
               </button>
               {b.name !== currentBranch && (
-                <button type="button" onClick={() => void handleDelete(b.name)}>
-                  Delete
-                </button>
+                <>
+                  <button type="button" onClick={() => void handleMerge(b.name)}>
+                    Merge into current
+                  </button>
+                  <button type="button" onClick={() => void handleDelete(b.name)}>
+                    Delete
+                  </button>
+                </>
               )}
             </span>
           </div>

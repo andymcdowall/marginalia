@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Baseline, DirEntry, GitClient, SaveCommit, Thread } from "@marginalia/core";
+import type { Baseline, DirEntry, GitClient, MergeResult, SaveCommit, Thread } from "@marginalia/core";
 
 export type OpenFile = {
   path: string;
@@ -39,8 +39,11 @@ type Store = {
   baselineLabel: string;
   baselineCleanText: string;
   activeHunkIndex: number;
+  mergeSource: string | null;
+  mergeResult: MergeResult | null;
 
   setWorkspace: (ws: WorkspaceState | null) => void;
+  setMerge: (source: string | null, result: MergeResult | null) => void;
   setCurrentBranch: (name: string) => void;
   setBranchMenuOpen: (open: boolean) => void;
   setTreeEntries: (dir: string, entries: DirEntry[]) => void;
@@ -83,8 +86,11 @@ export const useStore = create<Store>((set) => ({
   baselineLabel: "Origin",
   baselineCleanText: "",
   activeHunkIndex: -1,
+  mergeSource: null,
+  mergeResult: null,
 
   setWorkspace: (ws) => set({ workspace: ws, tree: {}, expandedDirs: new Set(), openFile: null }),
+  setMerge: (source, result) => set({ mergeSource: source, mergeResult: result }),
   setCurrentBranch: (name) => set({ currentBranch: name }),
   setBranchMenuOpen: (open) => set({ branchMenuOpen: open }),
   setTreeEntries: (dir, entries) => set((s) => ({ tree: { ...s.tree, [dir]: entries } })),

@@ -405,6 +405,82 @@ body {
   color: #1a7f37;
 }
 
+.merge-view {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 16px 24px;
+}
+
+.merge-view-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.merge-view-header button {
+  margin-left: 8px;
+}
+
+.merge-file {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.merge-file-name {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.merge-text {
+  white-space: pre-wrap;
+  opacity: 0.7;
+  margin: 4px 0;
+}
+
+.merge-conflict {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px;
+  margin: 8px 0;
+  background: var(--border);
+}
+
+.merge-conflict-side {
+  margin-bottom: 6px;
+}
+
+.merge-conflict-label {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.merge-conflict-side pre {
+  white-space: pre-wrap;
+  margin: 2px 0;
+}
+
+.merge-conflict-actions,
+.merge-conflict-edit {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.merge-conflict-actions button.chosen {
+  background: var(--accent);
+  color: white;
+}
+
+.merge-conflict-edit textarea {
+  flex: 1;
+  font-family: inherit;
+  min-height: 60px;
+}
+
 .comment-reply textarea {
   width: 100%;
   margin-top: 6px;
