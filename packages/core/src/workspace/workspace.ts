@@ -1,4 +1,5 @@
 import type { DirEntry, Platform } from "../platform.js";
+import type { GitClient } from "../git/GitClient.js";
 
 export type WorkspaceInfo = {
   root: string; // the folder the user opened (tree root, may be a subfolder of the repo)
@@ -81,9 +82,17 @@ function joinPath(dir: string, name: string): string {
   return dir.endsWith("/") ? `${dir}${name}` : `${dir}/${name}`;
 }
 
-// Tree actions (SPEC.md §6). Each MUST be followed by a commit ("<action>: <path>") once
-// versioning exists — TODO(Phase 2): wire `saveCommit`-style commits here.
-export async function createNote(platform: Platform, dir: string): Promise<string> {
+// Each tree action is followed by a commit ("<action>: <path>", SPEC.md §6). `git diff --cached
+// --quiet` first, since an empty new folder has nothing to add — git can't track empty
+// directories at all, so that commit would otherwise fail with nothing staged.
+async function commitPaths(git: GitClient, message: string, relPaths: string[]): Promise<void> {
+  await git.must(["add", "-A", "--", ...relPaths]);
+  const diff = await git.run(["diff", "--cached", "--quiet", "--", ...relPaths]);
+  if (diff.code === 0) return; // nothing staged
+  await git.must(["commit", "-m", message]);
+}
+
+export async function createNote(platform: Platform, git: GitClient, dir: string): Promise<string> {
   const existing = new Set((await platform.fs.list(dir)).map((e) => e.name));
   let name = "Untitled.md";
   for (let n = 2; existing.has(name); n++) {
@@ -91,10 +100,12 @@ export async function createNote(platform: Platform, dir: string): Promise<strin
   }
   const filePath = joinPath(dir, name);
   await platform.fs.writeText(filePath, "");
+  const rel = git.toRelative(filePath);
+  await commitPaths(git, `new note: ${rel}`, [rel]);
   return filePath;
 }
 
-export async function createFolder(platform: Platform, dir: string): Promise<string> {
+export async function createFolder(platform: Platform, git: GitClient, dir: string): Promise<string> {
   const existing = new Set((await platform.fs.list(dir)).map((e) => e.name));
   let name = "New Folder";
   for (let n = 2; existing.has(name); n++) {
@@ -102,23 +113,33 @@ export async function createFolder(platform: Platform, dir: string): Promise<str
   }
   const folderPath = joinPath(dir, name);
   await platform.fs.mkdir(folderPath);
+  const rel = git.toRelative(folderPath);
+  await commitPaths(git, `new folder: ${rel}`, [rel]);
   return folderPath;
 }
 
-export async function renameEntry(platform: Platform, fromPath: string, newName: string): Promise<string> {
+export async function renameEntry(platform: Platform, git: GitClient, fromPath: string, newName: string): Promise<string> {
   const dir = fromPath.slice(0, fromPath.lastIndexOf("/"));
   const toPath = joinPath(dir, newName);
   await platform.fs.rename(fromPath, toPath);
+  const relFrom = git.toRelative(fromPath);
+  const relTo = git.toRelative(toPath);
+  await commitPaths(git, `rename: ${relFrom} to ${relTo}`, [relFrom, relTo]);
   return toPath;
 }
 
-export async function removeEntry(platform: Platform, entryPath: string): Promise<void> {
+export async function removeEntry(platform: Platform, git: GitClient, entryPath: string): Promise<void> {
   await platform.fs.remove(entryPath);
+  const rel = git.toRelative(entryPath);
+  await commitPaths(git, `delete: ${rel}`, [rel]);
 }
 
-export async function moveEntry(platform: Platform, fromPath: string, toDir: string): Promise<string> {
+export async function moveEntry(platform: Platform, git: GitClient, fromPath: string, toDir: string): Promise<string> {
   const name = fromPath.slice(fromPath.lastIndexOf("/") + 1);
   const toPath = joinPath(toDir, name);
   await platform.fs.rename(fromPath, toPath);
+  const relFrom = git.toRelative(fromPath);
+  const relTo = git.toRelative(toPath);
+  await commitPaths(git, `move: ${relFrom} to ${relTo}`, [relFrom, relTo]);
   return toPath;
 }

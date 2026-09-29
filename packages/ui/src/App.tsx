@@ -2,7 +2,7 @@ import { useCallback, useEffect } from "react";
 import { GitClient, SaveCommit, currentBranch as gitCurrentBranch, getLastWorkspace, openWorkspace, resumeMerge } from "@marginalia/core";
 import type { Platform } from "@marginalia/core";
 import { usePlatform } from "./platformContext.js";
-import { useStore } from "./store.js";
+import { DEFAULT_SETTINGS, useStore } from "./store.js";
 import { FileTree } from "./components/FileTree.js";
 import { EditorPane } from "./components/EditorPane.js";
 import { StatusBar } from "./components/StatusBar.js";
@@ -11,6 +11,9 @@ import { CommentsPanel } from "./components/CommentsPanel.js";
 import { ChangesPanel } from "./components/ChangesPanel.js";
 import { MergeView } from "./components/MergeView.js";
 import { Toolbar } from "./components/Toolbar.js";
+import { ToastContainer } from "./components/ToastContainer.js";
+import { ShortcutsSheet } from "./components/ShortcutsSheet.js";
+import { SettingsDialog } from "./components/SettingsDialog.js";
 
 async function openAndPrepare(platform: Platform, root: string) {
   const info = await openWorkspace(platform, root);
@@ -18,6 +21,14 @@ async function openAndPrepare(platform: Platform, root: string) {
   const saveCommit = new SaveCommit(platform, git);
   const branch = await gitCurrentBranch(git);
   return { workspace: { ...info, git, saveCommit }, branch };
+}
+
+// SPEC.md §4.2: if no git binary resolved at Rust startup, `git_run` rejects every call with this
+// exact message. platform.ts's interface MUST match spec verbatim (§2.3), so this is detected
+// from the existing GitRunner contract rather than by adding a new Platform method.
+function isGitMissingError(e: unknown): boolean {
+  const message = e instanceof Error ? e.message : String(e);
+  return message.includes("git is not available") || message.includes("ENOENT");
 }
 
 export function App() {
@@ -30,9 +41,15 @@ export function App() {
   const setSidebarTab = useStore((s) => s.setSidebarTab);
   const mergeResult = useStore((s) => s.mergeResult);
   const setMerge = useStore((s) => s.setMerge);
+  const gitMissing = useStore((s) => s.gitMissing);
+  const setGitMissing = useStore((s) => s.setGitMissing);
+  const setSettings = useStore((s) => s.setSettings);
+  const shortcutsOpen = useStore((s) => s.shortcutsOpen);
+  const setShortcutsOpen = useStore((s) => s.setShortcutsOpen);
+  const settingsOpen = useStore((s) => s.settingsOpen);
+  const setSettingsOpen = useStore((s) => s.setSettingsOpen);
+  const addToast = useStore((s) => s.addToast);
 
-  // SPEC.md §9.4/§6: "Merge in progress: if .git/MERGE_HEAD exists, open the Merge view
-  // immediately" — re-derives conflict state from git alone (works across an app restart).
   async function checkForInProgressMerge(platform: Platform, ws: { git: GitClient }, branch: string): Promise<void> {
     if (!(await ws.git.isMergeInProgress())) return;
     const source = (await platform.store.get<string>("mergeSource")) ?? "idea";
@@ -41,7 +58,36 @@ export function App() {
   }
 
   useEffect(() => {
+    // SPEC.md §12 "Errors": catch what would otherwise be a silent unhandled rejection from any
+    // of the app's many fire-and-forget `void someAsyncAction()` call sites, and surface it as a
+    // dismissible toast instead — cheaper and more complete than wrapping every call site.
+    function handleRejection(event: PromiseRejectionEvent): void {
+      const reason = event.reason;
+      const message = reason instanceof Error ? reason.message : String(reason);
+      const gitError = reason as { args?: string[]; stderr?: string; code?: number };
+      const details = gitError?.args ? `git ${gitError.args.join(" ")}\n(exit ${gitError.code})\n${gitError.stderr ?? ""}` : undefined;
+      addToast(message, details);
+    }
+    window.addEventListener("unhandledrejection", handleRejection);
+    return () => window.removeEventListener("unhandledrejection", handleRejection);
+  }, [addToast]);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent): void {
+      if ((e.metaKey || e.ctrlKey) && e.key === "/") {
+        e.preventDefault();
+        setShortcutsOpen(true);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [setShortcutsOpen]);
+
+  useEffect(() => {
     void (async () => {
+      const stored = await platform.store.get<typeof DEFAULT_SETTINGS>("settings");
+      if (stored) setSettings({ ...DEFAULT_SETTINGS, ...stored });
+
       const last = await getLastWorkspace(platform);
       if (!last) return;
       try {
@@ -49,8 +95,9 @@ export function App() {
         setWorkspace(ws);
         setCurrentBranch(branch);
         await checkForInProgressMerge(platform, ws, branch);
-      } catch {
-        // The remembered workspace is gone or declined re-init; let the user pick again.
+      } catch (e) {
+        if (isGitMissingError(e)) setGitMissing(true);
+        // otherwise: the remembered workspace is gone or declined re-init; let the user pick again.
       }
     })();
   }, []);
@@ -58,11 +105,30 @@ export function App() {
   const handleOpenFolder = useCallback(async () => {
     const root = await platform.dialogs.openFolder();
     if (!root) return;
-    const { workspace: ws, branch } = await openAndPrepare(platform, root);
-    setWorkspace(ws);
-    setCurrentBranch(branch);
-    await checkForInProgressMerge(platform, ws, branch);
+    try {
+      const { workspace: ws, branch } = await openAndPrepare(platform, root);
+      setWorkspace(ws);
+      setCurrentBranch(branch);
+      await checkForInProgressMerge(platform, ws, branch);
+    } catch (e) {
+      if (isGitMissingError(e)) setGitMissing(true);
+      else throw e;
+    }
   }, [platform, setWorkspace, setCurrentBranch]);
+
+  if (gitMissing) {
+    return (
+      <div className="app-shell">
+        <div className="empty-state git-missing">
+          <h2>Git is required</h2>
+          <p>
+            Install Xcode Command Line Tools (<code>xcode-select --install</code>) or Homebrew git, then restart
+            Marginalia.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (!workspace) {
     return (
@@ -72,6 +138,8 @@ export function App() {
             Open folder
           </button>
         </div>
+        <ToastContainer />
+        {shortcutsOpen && <ShortcutsSheet onClose={() => setShortcutsOpen(false)} />}
       </div>
     );
   }
@@ -81,6 +149,7 @@ export function App() {
       <div className="app-root">
         <MergeView />
         <StatusBar />
+        <ToastContainer />
       </div>
     );
   }
@@ -115,6 +184,9 @@ export function App() {
         )}
       </div>
       <StatusBar />
+      <ToastContainer />
+      {shortcutsOpen && <ShortcutsSheet onClose={() => setShortcutsOpen(false)} />}
+      {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
     </div>
   );
 }

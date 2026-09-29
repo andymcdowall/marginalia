@@ -1,7 +1,48 @@
 # Progress
 
+## Final report (Phases 0–7 complete)
+
+### What works
+- **Full editor**: open a folder, browse/create/rename/delete/drag-move files and folders in the tree (each committed to git), open a `.md` note into a live-preview CodeMirror editor (headings/emphasis/links/images/blockquotes/fenced code/task checkboxes/frontmatter all styled and hidden-until-active per spec's table), source-mode toggle (Cmd+E), autosave (debounced, git-committed, configurable delay).
+- **Comments**: select text, Cmd+Shift+M to comment; highlights, gutter numbers, reply/resolve/delete, orphaning when a range's milestones are deleted, re-anchoring a detached comment, copy/cut/paste preserving comment data across the app with regenerated ids.
+- **Versioning**: every save is a real git commit; named snapshots; "ideas" (branches) with create/switch/rename/delete; full history panel (grouped autosaves, snapshot rows, merge rows) with view/restore/start-idea-from-here.
+- **Redline**: toggle (Cmd+Shift+R) against Origin/a snapshot/an idea/an arbitrary commit; insertions/deletions rendered inline; Changes panel with count, prev/next navigation, per-hunk revert semantics implemented and property-tested (not yet wired to a UI button — see below).
+- **Merge**: start a merge from the branch menu, resolve real text conflicts hunk-by-hunk (take ours/theirs/both/edit), non-.md conflicts (keep ours/theirs), abort, and resume correctly after a full app restart — all backed by integration tests against real git repos, not mocks.
+- **PDF export**: Clean and redline export, verified to never leak comment markup or text into the output HTML; opens a real print-preview window backed by the native macOS print dialog (see "PDF export" below for why it's not silent).
+- **Polish**: settings (autosave delay, default page size) persisted across restarts; Cmd+/ shortcut sheet; a blocking "Git is required" screen if no git binary resolves; dismissible error toasts with a Details expander for any git/file error; save-flush on quit.
+- `pnpm verify` (lint + typecheck + **90 automated tests** + `cargo check`) passes clean, repeatably. `pnpm build` produces a working, launchable `Marginalia.app` (verified by actually opening it and confirming the process runs, then quitting it).
+
+### What's stubbed, simplified, or blocked — and why
+Every item below has a full explanation logged in `DECISIONS.md` at the point it was decided; this is the summary.
+1. **PDF export is not silent/automatic.** The primary approach (a hidden/off-screen `WebviewWindow` driving native `NSPrintOperation` via `objc2`) reliably deadlocked in this environment — confirmed via a diagnostic that even plain synchronous `-runOperation` never returns, pointing at WKWebView's renderer never compositing a frame for a window that isn't genuinely on-screen here. Per spec's own explicit fallback permission, export now opens a real visible preview window with a Print… button; the person chooses "Save as PDF" themselves in the native dialog. **This is the single highest-value thing to verify on a real machine** — it may simply work natively there, in which case Phase 6's `pdf.rs` could be revisited.
+2. **Comment creation uses a `window.prompt()`**, not a focused draft textarea in the Comments panel. Same create/cancel-removes-tags behavior; the panel-focus version needs live draft-state coordination between the editor and the panel that wasn't built this pass.
+3. **Comment body markdown rendering** is a small hand-rolled bold/italic/code/newline converter, not the real `remark` pipeline (which is async and would need extra state for what's usually one line of text).
+4. **The "Pick from history…" baseline option** is a raw commit-SHA prompt, not a visual commit browser.
+5. **The DMG bundler step is disabled** (`tauri.conf.json` only targets `"app"` now) — it failed twice in this sandboxed environment (likely an `hdiutil`/Finder-AppleScript restriction here, not a defect in the app itself); the `.app` bundle builds and runs correctly. Worth re-enabling `"dmg"` on a real dev Mac.
+6. **No interactive/visual GUI click-through was ever performed by the agent** across all 8 phases — every UI code path is covered by jsdom unit tests and non-interactive `pnpm dev`/`pnpm build` launch checks (confirms the app starts and doesn't crash), never by actually clicking through the running app on a real screen. This is the most important category of manual testing below.
+7. Two Rust-side simplifications, both logged as acceptable rather than bugs: `watch.rs`'s file-change events only distinguish "modify" vs "remove" (not "create"/"rename" — `notify-debouncer-mini` doesn't expose enough detail to do better); release builds emit a harmless `rust-objcopy`/`libLLVM.dylib` warning from a broken local `llvm-tools` component (doesn't affect the built binary).
+
+### How to run it
+```
+pnpm install          # first time only
+pnpm dev              # launch the app in dev mode (hot-reloading)
+pnpm build            # produce target/release/bundle/macos/Marginalia.app
+pnpm verify           # lint + typecheck + all 90 tests + cargo check
+pnpm test             # just the test suite
+```
+Requires Node 20+, pnpm 9+, Rust stable (this machine needed a fresh install — see DECISIONS.md), and Xcode Command Line Tools. `pnpm dev` opens the app; use its "Open folder" button to pick or create a workspace directory (it'll offer to `git init` one that isn't already a repo).
+
+### Top 5 things to manually test first
+1. **PDF export, both Clean and Redline**, on a note with an image and a comment thread — confirm the preview window renders correctly and "Save as PDF" via the native print dialog produces a real, correct PDF. This is the riskiest, least-verified path in the whole app (see #1 above).
+2. **The full comment lifecycle** in the live editor: select text → Cmd+Shift+M → type a comment → see the highlight and gutter number → reply → resolve → delete a comment vs. delete the whole thread → delete the underlying text and confirm it becomes a "Detached comment" → re-anchor it.
+3. **A real merge with an actual text conflict**: create an idea, edit the same line on both the idea and main, merge, resolve via each of Take ours / Take theirs / Take both / Edit, finish the merge, and confirm the file and history look right. Then try Abort on a fresh conflict and confirm nothing was lost.
+4. **File tree operations**: new note, new folder, rename, delete (with confirm), and drag a file into a folder — confirm each shows up correctly in git history and the tree updates live.
+5. **Redline against each baseline kind** (Origin, a snapshot, another idea) via the Changes panel's baseline picker, including Prev/Next navigation (Alt+↑/↓) — and a resize/long-session sanity check that autosave, the git-missing screen (temporarily rename `/usr/bin/git` to test it, if you're brave), and error toasts (e.g., trigger one by deleting a file out from under an open merge) behave as expected.
+
+---
+
 ## Current phase
-Phase 7: Polish (starting)
+Complete (Phases 0–7)
 
 ## Done
 ### Phase 0: Scaffold + spikes
@@ -74,11 +115,14 @@ Phase 7: Polish (starting)
   6. Toolbar → Snapshot → name it → confirm no error toast; Sidebar → History tab → confirm the new snapshot row appears.
 - `pnpm verify` passes (lint + typecheck + 89 tests + `cargo check`). App launches cleanly; the automated GUI-click-through caveat from Phases 1–5 now specifically includes **not having run the manual procedure above** — flagging this explicitly since PDF export was the single riskiest, most novel part of the whole spec (Spike A's saga) and deserves an actual human check before being trusted.
 
-## In progress
-- Starting Phase 7: settings (autosave delay, default page size) in `AppStore`, Cmd+/ shortcut sheet, git-missing screen, quit flush, error toasts, final TODO sweep.
+### Phase 7: Polish
+- Settings (`autosaveDelayMs`, `defaultPageSize`) persisted via `AppStore`, editable through a new `SettingsDialog.tsx` (gear icon in the status bar); `EditorPane`'s autosave debounce and `ExportDialog`'s default page size both read from it now instead of hardcoded constants.
+- `ShortcutsSheet.tsx` (Cmd+/), the git-missing blocking screen (detected from the existing `GitRunner` contract's rejection rather than a new Platform method — see DECISIONS.md), a global `unhandledrejection`-driven `ToastContainer.tsx` for dismissible error toasts with a Details expander, and the missing Cmd+E source-mode shortcut (previously toolbar-button-only).
+- Resolved `workspace.ts`'s one remaining TODO: `createNote`/`createFolder`/`renameEntry`/`removeEntry`/`moveEntry` now commit per SPEC.md §6 (skipping the commit for an empty new folder, since git can't track those at all). Wired all of these into `FileTree.tsx` for the first time (new note/folder buttons, right-click rename/delete, native HTML5 drag-and-drop move) — previously built in core but never reachable from the UI.
+- Removed the now-obsolete Phase 0 `spike_a.rs` diagnostic hook, as promised in its own comment, now that Phase 6 wired the real export path.
+- Final TODO sweep: zero `TODO` comments remain anywhere in `packages/` or `apps/`.
+- **First-ever `pnpm build` run** (every prior phase only checked `pnpm dev`) surfaced a real, previously-unknown issue: the `.dmg` bundling step failed twice (Tauri's own bundler, likely an environment-specific `hdiutil`/Finder restriction) while the `.app` bundle succeeded both times. Switched `tauri.conf.json` to `"app"`-only bundling per the two-failures rule, then verified the resulting `Marginalia.app` both builds and actually launches as a real process.
+- `pnpm verify` passes (lint + typecheck + 90 tests + `cargo check`). `pnpm build` passes and produces a working `.app`. See the final report at the top of this file for the complete picture.
 
 ## Blocked
 (none)
-
-## Next steps
-- Phase 7 has no automated "Done when" list in SPEC.md §13 beyond building the listed items and resolving or logging every remaining TODO — treat `pnpm verify` + a final TODO sweep as the gate.

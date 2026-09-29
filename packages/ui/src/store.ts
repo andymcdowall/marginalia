@@ -20,6 +20,12 @@ export type WorkspaceState = {
 type TreeState = Record<string, DirEntry[]>; // dir path -> its direct children
 export type CommentFilter = "open" | "all";
 
+export type Settings = { autosaveDelayMs: number; defaultPageSize: "letter" | "a4" };
+export const DEFAULT_SETTINGS: Settings = { autosaveDelayMs: 1500, defaultPageSize: "letter" };
+
+export type Toast = { id: number; message: string; details?: string };
+let nextToastId = 1;
+
 type Store = {
   workspace: WorkspaceState | null;
   tree: TreeState;
@@ -41,9 +47,20 @@ type Store = {
   activeHunkIndex: number;
   mergeSource: string | null;
   mergeResult: MergeResult | null;
+  settings: Settings;
+  settingsOpen: boolean;
+  gitMissing: boolean;
+  toasts: Toast[];
+  shortcutsOpen: boolean;
 
   setWorkspace: (ws: WorkspaceState | null) => void;
   setMerge: (source: string | null, result: MergeResult | null) => void;
+  setSettings: (settings: Settings) => void;
+  setSettingsOpen: (open: boolean) => void;
+  setGitMissing: (missing: boolean) => void;
+  addToast: (message: string, details?: string) => void;
+  dismissToast: (id: number) => void;
+  setShortcutsOpen: (open: boolean) => void;
   setCurrentBranch: (name: string) => void;
   setBranchMenuOpen: (open: boolean) => void;
   setTreeEntries: (dir: string, entries: DirEntry[]) => void;
@@ -88,9 +105,20 @@ export const useStore = create<Store>((set) => ({
   activeHunkIndex: -1,
   mergeSource: null,
   mergeResult: null,
+  settings: DEFAULT_SETTINGS,
+  settingsOpen: false,
+  gitMissing: false,
+  toasts: [],
+  shortcutsOpen: false,
 
   setWorkspace: (ws) => set({ workspace: ws, tree: {}, expandedDirs: new Set(), openFile: null }),
   setMerge: (source, result) => set({ mergeSource: source, mergeResult: result }),
+  setSettings: (settings) => set({ settings }),
+  setSettingsOpen: (open) => set({ settingsOpen: open }),
+  setGitMissing: (missing) => set({ gitMissing: missing }),
+  addToast: (message, details) => set((s) => ({ toasts: [...s.toasts, { id: nextToastId++, message, details }] })),
+  dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+  setShortcutsOpen: (open) => set({ shortcutsOpen: open }),
   setCurrentBranch: (name) => set({ currentBranch: name }),
   setBranchMenuOpen: (open) => set({ branchMenuOpen: open }),
   setTreeEntries: (dir, entries) => set((s) => ({ tree: { ...s.tree, [dir]: entries } })),

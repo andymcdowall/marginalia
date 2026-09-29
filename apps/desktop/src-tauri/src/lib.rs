@@ -1,7 +1,6 @@
 mod fs;
 mod git;
 mod pdf;
-mod spike_a;
 mod state;
 mod store;
 mod watch;
@@ -35,7 +34,6 @@ pub fn run() {
         .setup(|app| {
             let state = app.state::<AppState>();
             *state.git_bin.lock().unwrap() = git::resolve_git_binary();
-            spike_a::maybe_run(app.handle().clone());
             Ok(())
         })
         .on_window_event(|window, event| {

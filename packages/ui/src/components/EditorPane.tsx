@@ -7,10 +7,9 @@ import { setThreads, setActiveThreadId } from "../editor/commentHighlights.js";
 import { insertCommentTags, removeCommentTags } from "../editor/comments.js";
 import { clipboardHandlers } from "../editor/clipboard.js";
 import { setRedlineOn, setBaselineClean } from "../editor/redline.js";
+import { setSourceMode } from "../editor/sourceMode.js";
 import { usePlatform } from "../platformContext.js";
 import { useStore } from "../store.js";
-
-const AUTOSAVE_DEBOUNCE_MS = 1500;
 
 // A pragmatic escape hatch for the few actions (re-anchor) that other sidebar panels need to run
 // directly against the live CodeMirror view, rather than plumbing a ref through context for one
@@ -47,7 +46,7 @@ export function EditorPane() {
 
     function scheduleSave(): void {
       if (saveTimer) clearTimeout(saveTimer);
-      saveTimer = setTimeout(() => void doSave(), AUTOSAVE_DEBOUNCE_MS);
+      saveTimer = setTimeout(() => void doSave(), useStore.getState().settings.autosaveDelayMs);
     }
 
     function handleCreateComment(): void {
@@ -85,6 +84,12 @@ export function EditorPane() {
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "r") {
         e.preventDefault();
         useStore.getState().setRedlineOn(!useStore.getState().redlineOn);
+      }
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "e") {
+        e.preventDefault();
+        const next = !useStore.getState().sourceMode;
+        useStore.getState().toggleSourceMode();
+        viewRef.current?.dispatch({ effects: setSourceMode.of(next) });
       }
     }
     function handleBlur(): void {

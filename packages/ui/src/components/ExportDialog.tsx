@@ -15,8 +15,9 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   const currentBranch = useStore((s) => s.currentBranch);
   const baseline = useStore((s) => s.baseline);
   const baselineLabel = useStore((s) => s.baselineLabel);
+  const settings = useStore((s) => s.settings);
   const [mode, setMode] = useState<"clean" | "redline">("clean");
-  const [pageSize, setPageSize] = useState<PdfOptions["pageSize"]>("letter");
+  const [pageSize, setPageSize] = useState<PdfOptions["pageSize"]>(settings.defaultPageSize);
   const [busy, setBusy] = useState(false);
 
   async function handleExport(): Promise<void> {

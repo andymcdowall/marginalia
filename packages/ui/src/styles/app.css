@@ -88,6 +88,42 @@ body {
   user-select: none;
 }
 
+.file-tree-row.drag-over {
+  background: var(--accent);
+  color: white;
+}
+
+.file-tree-toolbar {
+  display: flex;
+  gap: 4px;
+  padding: 0 8px 8px;
+}
+
+.file-tree-toolbar button {
+  font-size: 11px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  color: inherit;
+  padding: 2px 6px;
+}
+
+.file-tree-context-menu {
+  display: flex;
+  gap: 4px;
+  padding: 2px 12px 4px;
+}
+
+.file-tree-context-menu button {
+  font-size: 11px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+  color: inherit;
+}
+
 .file-tree-row:hover {
   background: var(--border);
 }
@@ -126,6 +162,104 @@ body {
 
 .status-bar-save {
   opacity: 0.6;
+}
+
+.status-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-bar-wordcount {
+  opacity: 0.6;
+}
+
+.status-bar-merge-badge {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: #cf222e;
+  color: white;
+  font-size: 11px;
+}
+
+.empty-state.git-missing {
+  max-width: 420px;
+  text-align: center;
+}
+
+.empty-state.git-missing code {
+  background: var(--border);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.toast-container {
+  position: fixed;
+  bottom: 40px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 200;
+  max-width: 360px;
+}
+
+.toast {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  font-size: 12px;
+}
+
+.toast-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toast-message {
+  flex: 1;
+}
+
+.toast-details-toggle,
+.toast-dismiss {
+  background: none;
+  border: none;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.toast-details {
+  margin-top: 6px;
+  white-space: pre-wrap;
+  background: var(--border);
+  padding: 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  max-height: 150px;
+  overflow: auto;
+}
+
+.shortcuts-sheet table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.shortcuts-sheet td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.shortcut-keys {
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .branch-menu {
