@@ -1,0 +1,31 @@
+{
+  "name": "@marginalia/ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/main.tsx",
+  "types": "src/App.tsx",
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@marginalia/core": "workspace:*",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^5.0.2",
+    "@codemirror/state": "^6.5.0",
+    "@codemirror/view": "^6.35.3",
+    "@codemirror/commands": "^6.7.1",
+    "@codemirror/language": "^6.10.8",
+    "@codemirror/lang-markdown": "^6.3.1",
+    "@codemirror/language-data": "^6.5.1",
+    "@codemirror/search": "^6.5.8",
+    "@lezer/markdown": "^1.4.0",
+    "@lezer/highlight": "^1.2.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.14",
+    "@types/react-dom": "^18.3.2"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Marginalia",
+  "version": "0.1.0",
+  "identifier": "com.marginalia.app",
+  "build": {
+    "beforeDevCommand": "vite",
+    "beforeBuildCommand": "vite build",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "Marginalia",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 720,
+        "minHeight": 480
+      }
+    ],
+    "security": {
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": []
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg", "app"],
+    "icon": ["icons/icon.png"]
+  }
+}
