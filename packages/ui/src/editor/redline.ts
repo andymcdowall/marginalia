@@ -1,7 +1,9 @@
 import { RangeSetBuilder, StateEffect, StateField } from "@codemirror/state";
-import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate, WidgetType } from "@codemirror/view";
+import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import { cleanText, wordDiff, type Hunk } from "@marginalia/core";
 
+// Compare view, right (editable) side: only insertions are marked here. Removed text is shown
+// struck through in the base pane on the left (basePane.ts), so there is no inline deletion widget.
 // SPEC.md §10.3: recomputed 150ms after doc changes, or immediately on toggle or baseline change.
 // This MUST actually be debounced, not just reactive — measured: a synchronous per-keystroke
 // recompute on a 10,000-word doc takes ~1s (Spike B's benchmark caught this). See DECISIONS.md.
@@ -28,21 +30,6 @@ export const redlineField = StateField.define<RedlineValue>({
   provide: (field) => EditorView.decorations.from(field, (v) => v.decorations),
 });
 
-class DeletedTextWidget extends WidgetType {
-  constructor(private readonly text: string) {
-    super();
-  }
-  eq(other: DeletedTextWidget): boolean {
-    return other.text === this.text;
-  }
-  toDOM(): HTMLElement {
-    const span = document.createElement("span");
-    span.className = "cm-del";
-    span.textContent = this.text;
-    return span;
-  }
-}
-
 type Entry = { from: number; to: number; decoration: Decoration };
 
 // Exposed separately so the Changes panel can get the same hunk list (in doc coordinates)
@@ -58,10 +45,6 @@ function buildDecorations(doc: string, baselineClean: string): DecorationSet {
   for (const h of hunks) {
     if (h.inserted) {
       entries.push({ from: toDoc[h.curFrom]!, to: toDoc[h.curTo]!, decoration: Decoration.mark({ class: "cm-ins" }) });
-    }
-    if (h.deleted) {
-      const at = toDoc[h.curFrom]!;
-      entries.push({ from: at, to: at, decoration: Decoration.widget({ widget: new DeletedTextWidget(h.deleted), side: -1 }) });
     }
   }
   entries.sort((a, b) => a.from - b.from || a.to - b.to);

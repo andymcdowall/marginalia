@@ -12,9 +12,10 @@ export function StatusBar() {
   const setBranchMenuOpen = useStore((s) => s.setBranchMenuOpen);
   const openFile = useStore((s) => s.openFile);
   const mergeResult = useStore((s) => s.mergeResult);
+  const draftDirty = useStore((s) => s.draftDirty);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
 
-  const saveState = !openFile ? "" : openFile.dirty ? "Saving…" : "Saved";
+  const saveState = openFile?.dirty ? "Saving…" : draftDirty ? "Unsaved changes" : "Idea saved";
 
   return (
     <div className="status-bar">

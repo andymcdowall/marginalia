@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { listTree, splitFile, createNote, createFolder, renameEntry, removeEntry, moveEntry } from "@marginalia/core";
 import { usePlatform } from "../platformContext.js";
 import { useStore } from "../store.js";
+import { showPrompt } from "../prompt.js";
+import { refreshDraft } from "../ideaActions.js";
 
 function dirOf(p: string): string {
   return p.slice(0, p.lastIndexOf("/"));
@@ -43,10 +45,11 @@ function Node({ dir, path, name, depth }: { dir: boolean; path: string; name: st
   async function handleRename(): Promise<void> {
     setMenuOpen(false);
     if (!workspace) return;
-    const newName = window.prompt("Rename to:", name);
+    const newName = await showPrompt("Rename to:", name);
     if (!newName || newName === name) return;
-    await renameEntry(platform, workspace.git, path, newName);
+    await renameEntry(platform, path, newName);
     await refreshParent();
+    void refreshDraft();
   }
 
   async function handleDelete(): Promise<void> {
@@ -54,9 +57,10 @@ function Node({ dir, path, name, depth }: { dir: boolean; path: string; name: st
     if (!workspace) return;
     const ok = await platform.dialogs.confirm(`Delete "${name}"?`, { danger: true });
     if (!ok) return;
-    await removeEntry(platform, workspace.git, path);
+    await removeEntry(platform, path);
     if (openFile?.path === path) useStore.getState().closeFile();
     await refreshParent();
+    void refreshDraft();
   }
 
   function handleDragStart(e: React.DragEvent): void {
@@ -69,8 +73,9 @@ function Node({ dir, path, name, depth }: { dir: boolean; path: string; name: st
     if (!dir || !workspace) return;
     const draggedPath = e.dataTransfer.getData("text/marginalia-path");
     if (!draggedPath || draggedPath === path) return;
-    await moveEntry(platform, workspace.git, draggedPath, path);
+    await moveEntry(platform, draggedPath, path);
     await Promise.all([refreshParent(), listTree(platform, path).then((entries) => setTreeEntries(path, entries))]);
+    void refreshDraft();
   }
 
   return (
@@ -142,14 +147,15 @@ export function FileTree({ root }: { root: string }) {
 
   async function handleNewNote(): Promise<void> {
     if (!workspace) return;
-    const filePath = await createNote(platform, workspace.git, root);
+    const filePath = await createNote(platform, root);
     await refreshRoot();
     openFileAt(filePath, [], "");
+    void refreshDraft();
   }
 
   async function handleNewFolder(): Promise<void> {
     if (!workspace) return;
-    await createFolder(platform, workspace.git, root);
+    await createFolder(platform, root);
     await refreshRoot();
   }
 

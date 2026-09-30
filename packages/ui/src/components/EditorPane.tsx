@@ -1,15 +1,17 @@
 import { useEffect, useRef } from "react";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { cleanText, joinFile, resolveBaselineSha, baselineText, splitFile, type Thread } from "@marginalia/core";
+import { joinFile, splitFile, type Thread } from "@marginalia/core";
 import { editorSetup } from "../editor/setup.js";
 import { setThreads, setActiveThreadId } from "../editor/commentHighlights.js";
-import { insertCommentTags, removeCommentTags } from "../editor/comments.js";
+import { insertCommentTags } from "../editor/comments.js";
 import { clipboardHandlers } from "../editor/clipboard.js";
 import { setRedlineOn, setBaselineClean } from "../editor/redline.js";
 import { setSourceMode } from "../editor/sourceMode.js";
 import { usePlatform } from "../platformContext.js";
 import { useStore } from "../store.js";
+import { editorBridge } from "../editorBridge.js";
+import { refreshDraft } from "../ideaActions.js";
 
 // A pragmatic escape hatch for the few actions (re-anchor) that other sidebar panels need to run
 // directly against the live CodeMirror view, rather than plumbing a ref through context for one
@@ -40,8 +42,9 @@ export function EditorPane() {
       const body = view.state.doc.toString();
       const content = joinFile(body, current.threads);
       if (content === current.lastSaved) return;
-      await workspace.saveCommit.save(path, content);
+      await workspace.saveCommit.save(path, content); // writes the file; committing is "Save idea"
       markSaved(content);
+      void refreshDraft();
     }
 
     function scheduleSave(): void {
@@ -52,31 +55,21 @@ export function EditorPane() {
     function handleCreateComment(): void {
       const view = viewRef.current;
       if (!view || view.state.selection.main.empty) return;
-      // Simplified from SPEC.md §8.2's "focus a draft textarea in the Comments panel": that needs
-      // live cross-component focus coordination this pass doesn't build. A synchronous prompt
-      // gets the same create/cancel-removes-tags behavior with far less plumbing — see
-      // DECISIONS.md.
-      const body = window.prompt("Comment:");
       const id = insertCommentTags(view);
       if (!id) return;
-      if (!body) {
-        removeCommentTags(view, id);
-        return;
-      }
       const now = new Date().toISOString();
-      const newThread: Thread = { id, status: "open", updated: now, comments: [{ id: `${id}-c1`, created: now, body }] };
+      const newThread: Thread = { id, status: "open", updated: now, comments: [] };
       const current = useStore.getState().openFile;
       if (current) useStore.getState().setThreads([...current.threads, newThread]);
       useStore.getState().setActiveThreadId(id);
+      // Per SPEC.md §8.2: focus a draft textarea in the Comments panel (CommentsPanel owns the
+      // input; it removes both tags and the thread if the draft is cancelled or submitted empty).
+      useStore.getState().setDraftThreadId(id);
+      useStore.getState().setSidebarTab("comments");
+      if (useStore.getState().sidebarRightCollapsed) useStore.getState().toggleSidebarRight();
     }
 
     function handleKeyDown(e: KeyboardEvent): void {
-      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
-        e.preventDefault();
-        if (saveTimer) clearTimeout(saveTimer);
-        void doSave();
-        return;
-      }
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "m") {
         e.preventDefault();
         handleCreateComment();
@@ -95,20 +88,6 @@ export function EditorPane() {
     function handleBlur(): void {
       if (saveTimer) clearTimeout(saveTimer);
       void doSave();
-    }
-
-    async function resolveAndApplyBaseline(): Promise<void> {
-      const view = viewRef.current;
-      const workspace = useStore.getState().workspace;
-      if (!view || !workspace || !path) return;
-      const { baseline } = useStore.getState();
-      const branch = useStore.getState().currentBranch;
-      const sha = await resolveBaselineSha(workspace.git, baseline, branch);
-      const rel = workspace.git.toRelative(path);
-      const text = await baselineText(workspace.git, sha, rel);
-      const clean = cleanText(text).text;
-      viewRef.current?.dispatch({ effects: setBaselineClean.of(clean) });
-      useStore.getState().setBaselineCleanText(clean);
     }
 
     void (async () => {
@@ -144,9 +123,15 @@ export function EditorPane() {
       window.addEventListener("blur", handleBlur);
       unsubscribeQuit = platform.onBeforeQuit(doSave);
 
+      editorBridge.flush = async () => {
+        if (saveTimer) clearTimeout(saveTimer);
+        await doSave();
+      };
+
       if (useStore.getState().redlineOn) {
-        viewRef.current.dispatch({ effects: setRedlineOn.of(true) });
-        void resolveAndApplyBaseline();
+        viewRef.current.dispatch({
+          effects: [setRedlineOn.of(true), setBaselineClean.of(useStore.getState().baselineCleanText)],
+        });
       }
     })();
 
@@ -165,10 +150,11 @@ export function EditorPane() {
       if (state.redlineOn !== prevState.redlineOn) {
         effects.push(setRedlineOn.of(state.redlineOn));
       }
-      if (effects.length) view.dispatch({ effects });
-      if (state.redlineOn && (state.baseline !== prevState.baseline || (state.redlineOn && !prevState.redlineOn))) {
-        void resolveAndApplyBaseline();
+      // The base text is resolved by BasePane (compare view); just mirror it into the editor.
+      if (state.baselineCleanText !== prevState.baselineCleanText) {
+        effects.push(setBaselineClean.of(state.baselineCleanText));
       }
+      if (effects.length) view.dispatch({ effects });
     });
 
     return () => {
@@ -182,6 +168,7 @@ export function EditorPane() {
       viewRef.current?.destroy();
       viewRef.current = null;
       activeEditorView.current = null;
+      editorBridge.flush = null;
     };
   }, [openFile?.path]);
 

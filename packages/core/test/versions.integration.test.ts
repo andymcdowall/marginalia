@@ -34,15 +34,15 @@ describe("versions: saveCommit", () => {
     const saveCommit = new SaveCommit(platform, git);
     const filePath = path.join(dir, "note.md");
 
-    await saveCommit.save(filePath, "hello\n");
+    await saveCommit.saveAndCommit(filePath, "hello\n");
     const log1 = await git.must(["log", "--oneline"]);
     expect(log1.stdout.trim().split("\n")).toHaveLength(2); // initial + this save
 
-    await saveCommit.save(filePath, "hello\n");
+    await saveCommit.saveAndCommit(filePath, "hello\n");
     const log2 = await git.must(["log", "--oneline"]);
     expect(log2.stdout.trim().split("\n")).toHaveLength(2); // unchanged
 
-    await saveCommit.save(filePath, "hello again\n");
+    await saveCommit.saveAndCommit(filePath, "hello again\n");
     const log3 = await git.must(["log", "--oneline"]);
     expect(log3.stdout.trim().split("\n")).toHaveLength(3);
   });
@@ -53,9 +53,9 @@ describe("versions: saveCommit", () => {
     const filePath = path.join(dir, "note.md");
 
     await Promise.all([
-      saveCommit.save(filePath, "a\n"),
-      saveCommit.save(filePath, "ab\n"),
-      saveCommit.save(filePath, "abc\n"),
+      saveCommit.saveAndCommit(filePath, "a\n"),
+      saveCommit.saveAndCommit(filePath, "ab\n"),
+      saveCommit.saveAndCommit(filePath, "abc\n"),
     ]);
 
     const content = await fs.readFile(filePath, "utf8");
@@ -72,23 +72,24 @@ describe("versions: snapshots", () => {
     const saveCommit = new SaveCommit(platform, git);
     const filePath = path.join(dir, "note.md");
 
-    await saveCommit.save(filePath, "version one\n");
+    await saveCommit.saveAndCommit(filePath, "version one\n");
     const tag = await createSnapshot(git, saveCommit, "main", "My Snapshot!", "a note");
     expect(tag).toBe("snapshot/main/my-snapshot");
 
-    await saveCommit.save(filePath, "version two\n");
+    await saveCommit.saveAndCommit(filePath, "version two\n");
 
     const snapshots = await listSnapshots(git, "main");
     expect(snapshots).toHaveLength(1);
     expect(snapshots[0]!.subject).toBe("My Snapshot!");
     expect(snapshots[0]!.body).toBe("a note");
 
-    await restoreToVersion(git, saveCommit, filePath, snapshots[0]!.objectName, "My Snapshot!");
+    await restoreToVersion(git, saveCommit, filePath, snapshots[0]!.objectName);
     const content = await fs.readFile(filePath, "utf8");
     expect(content).toBe("version one\n");
 
-    const log = await git.must(["log", "--oneline"]);
-    expect(log.stdout).toContain("restore: note.md to My Snapshot!");
+    // the restore is a draft edit, not a commit
+    const status = await git.must(["status", "--porcelain"]);
+    expect(status.stdout).toContain("note.md");
     // history is intact: nothing was reset, so "version two" is still in the log
     const historyContainingV2 = await git.run(["log", "--all", "-p", "--", "note.md"]);
     expect(historyContainingV2.stdout).toContain("version two");
@@ -101,10 +102,10 @@ describe("versions: snapshots", () => {
 
     const { git, platform, dir } = await freshRepo();
     const saveCommit = new SaveCommit(platform, git);
-    await saveCommit.save(path.join(dir, "note.md"), "v1\n");
+    await saveCommit.saveAndCommit(path.join(dir, "note.md"), "v1\n");
 
     const first = await createSnapshot(git, saveCommit, "main", "Same Name", "");
-    await saveCommit.save(path.join(dir, "note.md"), "v2\n");
+    await saveCommit.saveAndCommit(path.join(dir, "note.md"), "v2\n");
     const second = await createSnapshot(git, saveCommit, "main", "Same Name", "");
     expect(first).toBe("snapshot/main/same-name");
     expect(second).toBe("snapshot/main/same-name-2");
@@ -115,7 +116,7 @@ describe("versions: branches (ideas)", () => {
   it("records marginaliaBase on create", async () => {
     const { git, platform, dir } = await freshRepo();
     const saveCommit = new SaveCommit(platform, git);
-    await saveCommit.save(path.join(dir, "note.md"), "on main\n");
+    await saveCommit.saveAndCommit(path.join(dir, "note.md"), "on main\n");
 
     await createBranch(git, saveCommit, "my-idea", "HEAD");
     expect(await currentBranch(git)).toBe("my-idea");
@@ -131,7 +132,7 @@ describe("versions: branches (ideas)", () => {
   it("moves snapshot tags on rename", async () => {
     const { git, platform, dir } = await freshRepo();
     const saveCommit = new SaveCommit(platform, git);
-    await saveCommit.save(path.join(dir, "note.md"), "v1\n");
+    await saveCommit.saveAndCommit(path.join(dir, "note.md"), "v1\n");
     await createSnapshot(git, saveCommit, "main", "Keep Me", "note body");
 
     await renameBranch(git, "main", "renamed");
@@ -147,9 +148,9 @@ describe("versions: branches (ideas)", () => {
   it("removes tags and config on delete", async () => {
     const { git, platform, dir } = await freshRepo();
     const saveCommit = new SaveCommit(platform, git);
-    await saveCommit.save(path.join(dir, "note.md"), "on main\n");
+    await saveCommit.saveAndCommit(path.join(dir, "note.md"), "on main\n");
     await createBranch(git, saveCommit, "throwaway", "HEAD");
-    await saveCommit.save(path.join(dir, "note.md"), "on throwaway\n");
+    await saveCommit.saveAndCommit(path.join(dir, "note.md"), "on throwaway\n");
     await createSnapshot(git, saveCommit, "throwaway", "Temp", "");
     await switchBranch(git, saveCommit, "main");
 
@@ -175,7 +176,7 @@ describe("versions: baseline resolution", () => {
     // note.md doesn't exist at the very first commit
     expect(await baselineText(git, originSha, "note.md")).toBe("");
 
-    await saveCommit.save(filePath, "first content\n");
+    await saveCommit.saveAndCommit(filePath, "first content\n");
     const commitSha = (await git.must(["rev-parse", "HEAD"])).stdout.trim();
     expect(await resolveBaselineSha(git, { kind: "commit", sha: commitSha }, "main")).toBe(commitSha);
     expect(await baselineText(git, commitSha, "note.md")).toBe("first content\n");
@@ -200,12 +201,12 @@ describe("versions: history grouping", () => {
     // The snapshot tags whatever commit is HEAD at that moment, so that commit becomes its own
     // "snapshot" row rather than joining a group — save an extra commit first so both the leading
     // and trailing autosave runs still have 2+ commits each.
-    await saveCommit.save(filePath, "v1\n");
-    await saveCommit.save(filePath, "v2\n");
-    await saveCommit.save(filePath, "v3\n");
+    await saveCommit.saveAndCommit(filePath, "v1\n");
+    await saveCommit.saveAndCommit(filePath, "v2\n");
+    await saveCommit.saveAndCommit(filePath, "v3\n");
     const tag = await createSnapshot(git, saveCommit, "main", "Mid", "");
-    await saveCommit.save(filePath, "v4\n");
-    await saveCommit.save(filePath, "v5\n");
+    await saveCommit.saveAndCommit(filePath, "v4\n");
+    await saveCommit.saveAndCommit(filePath, "v5\n");
 
     const commits = await fileHistory(git, "note.md");
     const snapshots = await listSnapshots(git, "main");

@@ -54,8 +54,12 @@ export function CommentsPanel() {
   const setThreadsStore = useStore((s) => s.setThreads);
   const commentFilter = useStore((s) => s.commentFilter);
   const setCommentFilter = useStore((s) => s.setCommentFilter);
+  const draftThreadId = useStore((s) => s.draftThreadId);
+  const setDraftThreadId = useStore((s) => s.setDraftThreadId);
+  const addToast = useStore((s) => s.addToast);
   const platform = usePlatform();
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [draftBody, setDraftBody] = useState("");
 
   if (!openFile) return <div className="comments-panel-empty">No file open.</div>;
 
@@ -100,14 +104,62 @@ export function CommentsPanel() {
     updateThread(t.id, (th) => ({ ...th, comments: th.comments.filter((c) => c.id !== commentId) }));
   }
 
+  function handleDraftCancel(t: Thread): void {
+    if (activeEditorView.current) removeCommentTags(activeEditorView.current, t.id);
+    setThreadsStore(openFile!.threads.filter((th) => th.id !== t.id));
+    setDraftThreadId(null);
+    setDraftBody("");
+    if (activeThreadId === t.id) setActiveThreadId(null);
+  }
+
+  function handleDraftSubmit(t: Thread): void {
+    const text = draftBody.trim();
+    if (!text) {
+      handleDraftCancel(t);
+      return;
+    }
+    const now = new Date().toISOString();
+    updateThread(t.id, (th) => ({ ...th, updated: now, comments: [{ id: `${t.id}-c1`, created: now, body: text }] }));
+    setDraftThreadId(null);
+    setDraftBody("");
+  }
+
   function handleReAnchor(t: Thread): void {
     if (!activeEditorView.current) return;
     const ok = reAnchorThread(activeEditorView.current, t.id);
-    if (!ok) window.alert("Select a range in the editor first.");
+    if (!ok) addToast("Select a range in the editor first.");
   }
 
   function renderCard(t: Thread) {
     const number = displayNumbers.get(t.id);
+    if (t.id === draftThreadId) {
+      return (
+        <div key={t.id} className="comment-card active">
+          <div className="comment-card-header">
+            {number !== undefined && <span className="comment-card-number">{number}</span>}
+            <span className="comment-card-excerpt">{excerpt(docText, t.id) || "(no range)"}</span>
+          </div>
+          <div className="comment-reply">
+            <textarea
+              autoFocus
+              value={draftBody}
+              onChange={(e) => setDraftBody(e.target.value)}
+              onKeyDown={(e) => {
+                if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                  e.preventDefault();
+                  handleDraftSubmit(t);
+                }
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  handleDraftCancel(t);
+                }
+              }}
+              placeholder="Comment… (Cmd+Enter to submit, Esc to cancel)"
+            />
+          </div>
+        </div>
+      );
+    }
     return (
       <div
         key={t.id}

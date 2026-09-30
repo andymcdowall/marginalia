@@ -26,6 +26,20 @@ export const DEFAULT_SETTINGS: Settings = { autosaveDelayMs: 1500, defaultPageSi
 export type Toast = { id: number; message: string; details?: string };
 let nextToastId = 1;
 
+// In-app replacement for `window.prompt()`, which Tauri's macOS WebView never implements (see
+// DECISIONS.md). `showPrompt` (prompt.ts) resolves this once <PromptDialogHost/> settles it.
+export type PromptRequest = { title: string; defaultValue: string; resolve: (value: string | null) => void };
+
+// A modal with several labelled buttons (e.g. carry over / discard / cancel). Resolves to the chosen
+// option's `value`, or null if dismissed. Rendered by <ChoiceDialogHost/>.
+export type ChoiceOption = { value: string; label: string; danger?: boolean };
+export type ChoiceRequest = {
+  title: string;
+  message: string;
+  options: ChoiceOption[];
+  resolve: (value: string | null) => void;
+};
+
 type Store = {
   workspace: WorkspaceState | null;
   tree: TreeState;
@@ -40,7 +54,10 @@ type Store = {
   draftThreadId: string | null;
   commentFilter: CommentFilter;
   sidebarTab: "comments" | "history" | "changes";
+  // "Compare view" on/off. (Named `redlineOn` from when this was an inline redline; it now drives
+  // the side-by-side base | changes view.)
   redlineOn: boolean;
+  // The LEFT dropdown: always `{ kind: "branch", name }` in the UI, i.e. an idea's latest commit.
   baseline: Baseline;
   baselineLabel: string;
   baselineCleanText: string;
@@ -52,6 +69,14 @@ type Store = {
   gitMissing: boolean;
   toasts: Toast[];
   shortcutsOpen: boolean;
+  promptRequest: PromptRequest | null;
+  choiceRequest: ChoiceRequest | null;
+  // True when the working tree differs from the checked-out idea's latest commit.
+  draftDirty: boolean;
+  // Bumped whenever the draft or an idea's tip may have changed, so dependents re-read git.
+  draftVersion: number;
+  // Absolute path of a file that exists on the left but was deleted on the right (compare view).
+  deletedView: string | null;
 
   setWorkspace: (ws: WorkspaceState | null) => void;
   setMerge: (source: string | null, result: MergeResult | null) => void;
@@ -82,6 +107,13 @@ type Store = {
   toggleSidebarLeft: () => void;
   toggleSidebarRight: () => void;
   toggleSourceMode: () => void;
+  requestPrompt: (title: string, defaultValue: string, resolve: (value: string | null) => void) => void;
+  settlePrompt: (value: string | null) => void;
+  requestChoice: (request: Omit<ChoiceRequest, "resolve">, resolve: (value: string | null) => void) => void;
+  settleChoice: (value: string | null) => void;
+  setDraftDirty: (dirty: boolean) => void;
+  bumpDraftVersion: () => void;
+  setDeletedView: (path: string | null) => void;
 };
 
 export const useStore = create<Store>((set) => ({
@@ -99,8 +131,8 @@ export const useStore = create<Store>((set) => ({
   commentFilter: "open",
   sidebarTab: "comments",
   redlineOn: false,
-  baseline: { kind: "origin" },
-  baselineLabel: "Origin",
+  baseline: { kind: "branch", name: "main" },
+  baselineLabel: "main",
   baselineCleanText: "",
   activeHunkIndex: -1,
   mergeSource: null,
@@ -110,6 +142,11 @@ export const useStore = create<Store>((set) => ({
   gitMissing: false,
   toasts: [],
   shortcutsOpen: false,
+  promptRequest: null,
+  choiceRequest: null,
+  draftDirty: false,
+  draftVersion: 0,
+  deletedView: null,
 
   setWorkspace: (ws) => set({ workspace: ws, tree: {}, expandedDirs: new Set(), openFile: null }),
   setMerge: (source, result) => set({ mergeSource: source, mergeResult: result }),
@@ -134,12 +171,12 @@ export const useStore = create<Store>((set) => ({
       openFile: { path, threads, dirty: false, lastSaved: content, docText: content },
       activeThreadId: null,
       draftThreadId: null,
-      baseline: { kind: "origin" },
-      baselineLabel: "Origin",
+      deletedView: null,
+      // The compare base (left dropdown) deliberately survives opening another file.
       baselineCleanText: "",
       activeHunkIndex: -1,
     }),
-  closeFile: () => set({ openFile: null, activeThreadId: null, draftThreadId: null }),
+  closeFile: () => set({ openFile: null, deletedView: null, activeThreadId: null, draftThreadId: null }),
   markDirty: (dirty) => set((s) => (s.openFile ? { openFile: { ...s.openFile, dirty } } : {})),
   markSaved: (content) =>
     set((s) => (s.openFile ? { openFile: { ...s.openFile, dirty: false, lastSaved: content } } : {})),
@@ -156,4 +193,19 @@ export const useStore = create<Store>((set) => ({
   toggleSidebarLeft: () => set((s) => ({ sidebarLeftCollapsed: !s.sidebarLeftCollapsed })),
   toggleSidebarRight: () => set((s) => ({ sidebarRightCollapsed: !s.sidebarRightCollapsed })),
   toggleSourceMode: () => set((s) => ({ sourceMode: !s.sourceMode })),
+  requestPrompt: (title, defaultValue, resolve) => set({ promptRequest: { title, defaultValue, resolve } }),
+  settlePrompt: (value) =>
+    set((s) => {
+      s.promptRequest?.resolve(value);
+      return { promptRequest: null };
+    }),
+  requestChoice: (request, resolve) => set({ choiceRequest: { ...request, resolve } }),
+  settleChoice: (value) =>
+    set((s) => {
+      s.choiceRequest?.resolve(value);
+      return { choiceRequest: null };
+    }),
+  setDraftDirty: (dirty) => set({ draftDirty: dirty }),
+  bumpDraftVersion: () => set((s) => ({ draftVersion: s.draftVersion + 1 })),
+  setDeletedView: (path) => set(path ? { deletedView: path, openFile: null } : { deletedView: null }),
 }));

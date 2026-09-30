@@ -89,17 +89,17 @@ export async function listSnapshots(git: GitClient, branch: string): Promise<Sna
   return out;
 }
 
-// Restores a file's content at `sha` (a snapshot's objectName or any commit) as a new, normal
-// commit — never resets or rewrites history (SPEC.md §9.2).
+// Restores a file's content at `sha` (a snapshot's objectName or any commit) into the working
+// tree as an ordinary edit — it becomes part of the current draft until the idea is saved. Never
+// resets or rewrites history (SPEC.md §9.2).
 export async function restoreToVersion(
   git: GitClient,
   saveCommit: SaveCommit,
   absPath: string,
-  sha: string,
-  label: string
+  sha: string
 ): Promise<void> {
   const rel = git.toRelative(absPath);
   const show = await git.run(["show", `${sha}:${rel}`]);
   const content = show.code === 0 ? show.stdout : "";
-  await saveCommit.save(absPath, content, `restore: ${rel} to ${label}`);
+  await saveCommit.save(absPath, content);
 }

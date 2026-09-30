@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
-import { createBranch, deleteBranch, listBranches, renameBranch, switchBranch, startMerge, type BranchInfo } from "@marginalia/core";
+import { createBranch, deleteBranch, listBranches, renameBranch, startMerge, type BranchInfo } from "@marginalia/core";
 import { usePlatform } from "../platformContext.js";
 import { useStore } from "../store.js";
+import { showPrompt } from "../prompt.js";
+import { refreshDraft, saveIdea, switchToIdea } from "../ideaActions.js";
 
 export function BranchMenu({ onClose }: { onClose: () => void }) {
   const platform = usePlatform();
   const workspace = useStore((s) => s.workspace);
   const currentBranch = useStore((s) => s.currentBranch);
   const setCurrentBranch = useStore((s) => s.setCurrentBranch);
-  const closeFile = useStore((s) => s.closeFile);
   const setMerge = useStore((s) => s.setMerge);
+  const addToast = useStore((s) => s.addToast);
   const [branches, setBranches] = useState<BranchInfo[]>([]);
 
   useEffect(() => {
@@ -24,27 +26,25 @@ export function BranchMenu({ onClose }: { onClose: () => void }) {
   }
 
   async function handleSwitch(name: string): Promise<void> {
-    if (name === currentBranch) return;
-    await switchBranch(workspace!.git, workspace!.saveCommit, name);
-    setCurrentBranch(name);
-    closeFile(); // SPEC.md §9.3: reload the open file, or close it if absent on the new branch
     onClose();
+    await switchToIdea(platform, name); // handles unsaved changes; reopens the file if it still exists
   }
 
   async function handleNew(): Promise<void> {
-    const name = window.prompt("Name this idea:");
+    const name = await showPrompt("Name this idea:");
     if (!name) return;
     try {
-      await createBranch(workspace!.git, workspace!.saveCommit, name, "HEAD");
+      await createBranch(workspace!.git, workspace!.saveCommit, name, "HEAD"); // keeps the draft
       setCurrentBranch(name);
+      await refreshDraft();
       onClose();
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : String(e));
+      addToast(e instanceof Error ? e.message : String(e));
     }
   }
 
   async function handleRename(oldName: string): Promise<void> {
-    const newName = window.prompt("Rename idea:", oldName);
+    const newName = await showPrompt("Rename idea:", oldName);
     if (!newName || newName === oldName) return;
     await renameBranch(workspace!.git, oldName, newName);
     if (currentBranch === oldName) setCurrentBranch(newName);
@@ -62,9 +62,12 @@ export function BranchMenu({ onClose }: { onClose: () => void }) {
 
   async function handleMerge(name: string): Promise<void> {
     onClose();
+    // A merge needs a clean tree, so the draft has to be saved (committed) first.
+    if (useStore.getState().draftDirty && !(await saveIdea())) return;
     await platform.store.set("mergeSource", name);
     const result = await startMerge(platform, workspace!.git, workspace!.saveCommit, name, currentBranch);
     setMerge(name, result);
+    await refreshDraft();
   }
 
   return (

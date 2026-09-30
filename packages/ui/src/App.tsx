@@ -14,6 +14,10 @@ import { Toolbar } from "./components/Toolbar.js";
 import { ToastContainer } from "./components/ToastContainer.js";
 import { ShortcutsSheet } from "./components/ShortcutsSheet.js";
 import { SettingsDialog } from "./components/SettingsDialog.js";
+import { PromptDialogHost } from "./components/PromptDialogHost.js";
+import { ChoiceDialogHost } from "./components/ChoiceDialogHost.js";
+import { BasePane } from "./components/BasePane.js";
+import { initCompare, saveIdea } from "./ideaActions.js";
 
 async function openAndPrepare(platform: Platform, root: string) {
   const info = await openWorkspace(platform, root);
@@ -49,6 +53,12 @@ export function App() {
   const settingsOpen = useStore((s) => s.settingsOpen);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   const addToast = useStore((s) => s.addToast);
+  const redlineOn = useStore((s) => s.redlineOn);
+  const openFile = useStore((s) => s.openFile);
+  const deletedView = useStore((s) => s.deletedView);
+  const baseline = useStore((s) => s.baseline);
+  const currentBranch = useStore((s) => s.currentBranch);
+  const draftDirty = useStore((s) => s.draftDirty);
 
   async function checkForInProgressMerge(platform: Platform, ws: { git: GitClient }, branch: string): Promise<void> {
     if (!(await ws.git.isMergeInProgress())) return;
@@ -78,6 +88,10 @@ export function App() {
         e.preventDefault();
         setShortcutsOpen(true);
       }
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        void saveIdea();
+      }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -94,6 +108,7 @@ export function App() {
         const { workspace: ws, branch } = await openAndPrepare(platform, last);
         setWorkspace(ws);
         setCurrentBranch(branch);
+        await initCompare();
         await checkForInProgressMerge(platform, ws, branch);
       } catch (e) {
         if (isGitMissingError(e)) setGitMissing(true);
@@ -109,6 +124,7 @@ export function App() {
       const { workspace: ws, branch } = await openAndPrepare(platform, root);
       setWorkspace(ws);
       setCurrentBranch(branch);
+      await initCompare();
       await checkForInProgressMerge(platform, ws, branch);
     } catch (e) {
       if (isGitMissingError(e)) setGitMissing(true);
@@ -150,6 +166,7 @@ export function App() {
         <MergeView />
         <StatusBar />
         <ToastContainer />
+        <PromptDialogHost />
       </div>
     );
   }
@@ -162,7 +179,14 @@ export function App() {
           <FileTree root={workspace.root} />
         </div>
         <div className="editor-area">
-          <EditorPane />
+          {redlineOn && (openFile || deletedView) && (
+            <BasePane label={baseline.kind === "branch" ? baseline.name : currentBranch} />
+          )}
+          {deletedView ? (
+            <div className="compare-deleted">{`Deleted in ${currentBranch}${draftDirty ? " (unsaved changes)" : ""}`}</div>
+          ) : (
+            <EditorPane />
+          )}
         </div>
         {!sidebarRightCollapsed && (
           <div className="sidebar-right">
@@ -185,6 +209,8 @@ export function App() {
       </div>
       <StatusBar />
       <ToastContainer />
+      <PromptDialogHost />
+      <ChoiceDialogHost />
       {shortcutsOpen && <ShortcutsSheet onClose={() => setShortcutsOpen(false)} />}
       {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
     </div>

@@ -8,7 +8,9 @@ import {
   splitFile,
   type HistoryRow,
 } from "@marginalia/core";
+import { usePlatform } from "../platformContext.js";
 import { useStore } from "../store.js";
+import { showPrompt } from "../prompt.js";
 
 function formatDate(iso: string): string {
   if (!iso) return "";
@@ -17,6 +19,7 @@ function formatDate(iso: string): string {
 }
 
 export function HistoryPanel() {
+  const platform = usePlatform();
   const workspace = useStore((s) => s.workspace);
   const openFile = useStore((s) => s.openFile);
   const currentBranch = useStore((s) => s.currentBranch);
@@ -55,14 +58,14 @@ export function HistoryPanel() {
   }
 
   async function handleRestore(sha: string, label: string): Promise<void> {
-    const ok = await window.confirm(`Restore ${relPath} to "${label}"? This creates a new commit.`);
+    const ok = await platform.dialogs.confirm(`Restore ${relPath} to "${label}"? It becomes part of your unsaved changes until you save the idea.`);
     if (!ok) return;
-    await restoreToVersion(workspace!.git, workspace!.saveCommit, openFile!.path, sha, label);
+    await restoreToVersion(workspace!.git, workspace!.saveCommit, openFile!.path, sha);
     window.location.reload();
   }
 
   async function handleStartIdea(sha: string): Promise<void> {
-    const name = window.prompt("Name the new idea:");
+    const name = await showPrompt("Name the new idea:");
     if (!name) return;
     await createBranch(workspace!.git, workspace!.saveCommit, name, sha);
     setCurrentBranch(name);

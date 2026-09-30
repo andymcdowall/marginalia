@@ -15,7 +15,7 @@
 ### What's stubbed, simplified, or blocked — and why
 Every item below has a full explanation logged in `DECISIONS.md` at the point it was decided; this is the summary.
 1. **PDF export is not silent/automatic.** The primary approach (a hidden/off-screen `WebviewWindow` driving native `NSPrintOperation` via `objc2`) reliably deadlocked in this environment — confirmed via a diagnostic that even plain synchronous `-runOperation` never returns, pointing at WKWebView's renderer never compositing a frame for a window that isn't genuinely on-screen here. Per spec's own explicit fallback permission, export now opens a real visible preview window with a Print… button; the person chooses "Save as PDF" themselves in the native dialog. **This is the single highest-value thing to verify on a real machine** — it may simply work natively there, in which case Phase 6's `pdf.rs` could be revisited.
-2. **Comment creation uses a `window.prompt()`**, not a focused draft textarea in the Comments panel. Same create/cancel-removes-tags behavior; the panel-focus version needs live draft-state coordination between the editor and the panel that wasn't built this pass.
+2. ~~**Comment creation uses a `window.prompt()`**~~ — fixed post-Phase-7: `window.prompt()` never actually worked in the real Tauri app (WKWebView doesn't implement the JS prompt panel), so the feature was silently broken end-to-end, not just simplified. Comment creation now focuses a real draft textarea in the Comments panel per SPEC.md §8.2 (Cmd+Enter submits, Esc cancels and removes the tags). See DECISIONS.md.
 3. **Comment body markdown rendering** is a small hand-rolled bold/italic/code/newline converter, not the real `remark` pipeline (which is async and would need extra state for what's usually one line of text).
 4. **The "Pick from history…" baseline option** is a raw commit-SHA prompt, not a visual commit browser.
 5. **The DMG bundler step is disabled** (`tauri.conf.json` only targets `"app"` now) — it failed twice in this sandboxed environment (likely an `hdiutil`/Finder-AppleScript restriction here, not a defect in the app itself); the `.app` bundle builds and runs correctly. Worth re-enabling `"dmg"` on a real dev Mac.
@@ -123,6 +123,12 @@ Complete (Phases 0–7)
 - Final TODO sweep: zero `TODO` comments remain anywhere in `packages/` or `apps/`.
 - **First-ever `pnpm build` run** (every prior phase only checked `pnpm dev`) surfaced a real, previously-unknown issue: the `.dmg` bundling step failed twice (Tauri's own bundler, likely an environment-specific `hdiutil`/Finder restriction) while the `.app` bundle succeeded both times. Switched `tauri.conf.json` to `"app"`-only bundling per the two-failures rule, then verified the resulting `Marginalia.app` both builds and actually launches as a real process.
 - `pnpm verify` passes (lint + typecheck + 90 tests + `cargo check`). `pnpm build` passes and produces a working `.app`. See the final report at the top of this file for the complete picture.
+
+### Post-Phase 7: Compare view (saved idea vs. current draft)
+- Core: `SaveCommit.save` is write-only; `commitDraft` ("Save idea"); `versions/draft.ts` (`hasDraftChanges`, `draftSummary`, `discardDraft`, `switchIdea` carry/discard/clean); `versions/compare.ts` (`listChangedFiles`, `ideaFileText`, `defaultCompareBase`). Tree actions no longer commit.
+- UI: `CompareBar` (Base | Changes dropdowns), rewritten `ChangesPanel` (VS Code-colored changed-file list, Save idea, hunk nav), `BasePane` (read-only base with struck-through removals, scroll-synced), `ideaActions.ts` (`saveIdea`, `switchToIdea`, `refreshDraft`), `ChoiceDialogHost` (carry over / discard). Cmd+S = Save idea. Status bar shows "Unsaved changes" / "Idea saved".
+- `pnpm verify` passes (102 tests). See DECISIONS.md for the trade-offs.
+- **Manual check still needed:** open two ideas, edit, watch the file list colors, switch the right dropdown with unsaved changes (carry and discard), delete/add a note and open it from the list.
 
 ## Blocked
 (none)

@@ -29,12 +29,12 @@ describe("merge: clean merge", () => {
   it("merges a non-conflicting change and produces one merge commit", async () => {
     const { dir, git, saveCommit, platform } = await freshRepo();
     const notePath = path.join(dir, "note.md");
-    await saveCommit.save(notePath, "Line one.\n");
+    await saveCommit.saveAndCommit(notePath, "Line one.\n");
 
     await createBranch(git, saveCommit, "idea1", "HEAD");
-    await saveCommit.save(notePath, "Line one.\nLine two.\n");
+    await saveCommit.saveAndCommit(notePath, "Line one.\nLine two.\n");
     await switchBranch(git, saveCommit, "main");
-    await saveCommit.save(path.join(dir, "other.md"), "Other file.\n");
+    await saveCommit.saveAndCommit(path.join(dir, "other.md"), "Other file.\n");
 
     const result = await startMerge(platform, git, saveCommit, "idea1", "main");
     expect(result.kind).toBe("committed");
@@ -47,11 +47,11 @@ describe("merge: text conflicts, resolved with ours / theirs / both", () => {
   async function setupConflict() {
     const { dir, git, platform, saveCommit } = await freshRepo();
     const notePath = path.join(dir, "note.md");
-    await saveCommit.save(notePath, "original\n");
+    await saveCommit.saveAndCommit(notePath, "original\n");
     await createBranch(git, saveCommit, "idea1", "HEAD");
-    await saveCommit.save(notePath, "ours version\n");
+    await saveCommit.saveAndCommit(notePath, "ours version\n");
     await switchBranch(git, saveCommit, "main");
-    await saveCommit.save(notePath, "theirs version\n");
+    await saveCommit.saveAndCommit(notePath, "theirs version\n");
     return { dir, git, platform, saveCommit, notePath };
   }
 
@@ -105,11 +105,11 @@ describe("merge: comment threads", () => {
     // edits to treat them as independent (non-conflicting) hunks — with zero buffer between them
     // it conservatively treats adjacent changed lines as one conflict region even when the edits
     // themselves don't overlap. Keep an untouched line between the two edits.
-    await saveCommit.save(notePath, "First sentence.\nUnchanged middle sentence.\nThird sentence.\n");
+    await saveCommit.saveAndCommit(notePath, "First sentence.\nUnchanged middle sentence.\nThird sentence.\n");
 
     await createBranch(git, saveCommit, "idea1", "HEAD");
     const theirsThread: Thread = { id: "aaaaaa", status: "open", updated: T, comments: [{ id: "c11111", created: T, body: "idea1's comment" }] };
-    await saveCommit.save(
+    await saveCommit.saveAndCommit(
       notePath,
       joinFile(
         '<comment-start id="aaaaaa"/>First sentence.<comment-end id="aaaaaa"/>\nUnchanged middle sentence.\nThird sentence.\n',
@@ -119,7 +119,7 @@ describe("merge: comment threads", () => {
 
     await switchBranch(git, saveCommit, "main");
     const oursThread: Thread = { id: "bbbbbb", status: "open", updated: T, comments: [{ id: "c22222", created: T, body: "main's comment" }] };
-    await saveCommit.save(
+    await saveCommit.saveAndCommit(
       notePath,
       joinFile(
         'First sentence.\nUnchanged middle sentence.\n<comment-start id="bbbbbb"/>Third sentence.<comment-end id="bbbbbb"/>\n',
@@ -142,7 +142,7 @@ describe("merge: comment threads", () => {
     const notePath = path.join(dir, "note.md");
     const body = 'A <comment-start id="cccccc"/>range<comment-end id="cccccc"/> here.\n';
     const baseThread: Thread = { id: "cccccc", status: "open", updated: T, comments: [{ id: "c00000", created: T, body: "original" }] };
-    await saveCommit.save(notePath, joinFile(body, [baseThread]));
+    await saveCommit.saveAndCommit(notePath, joinFile(body, [baseThread]));
 
     // idea1 is git's "theirs" here (it's the branch being merged INTO main); give its reply the
     // earlier timestamp so the union order is deterministic regardless of ours/theirs handling.
@@ -151,14 +151,14 @@ describe("merge: comment threads", () => {
       ...baseThread,
       comments: [...baseThread.comments, { id: "c11111", created: T, body: "idea1 reply" }],
     };
-    await saveCommit.save(notePath, joinFile(body, [theirsThread]));
+    await saveCommit.saveAndCommit(notePath, joinFile(body, [theirsThread]));
 
     await switchBranch(git, saveCommit, "main");
     const oursThread: Thread = {
       ...baseThread,
       comments: [...baseThread.comments, { id: "c22222", created: LATER, body: "main reply" }],
     };
-    await saveCommit.save(notePath, joinFile(body, [oursThread]));
+    await saveCommit.saveAndCommit(notePath, joinFile(body, [oursThread]));
 
     const result = await startMerge(platform, git, saveCommit, "idea1", "main");
     expect(result.kind).toBe("committed");
@@ -174,14 +174,14 @@ describe("merge: comment threads", () => {
     const notePath = path.join(dir, "note.md");
     const body = 'A <comment-start id="dddddd"/>range<comment-end id="dddddd"/> here.\n';
     const baseThread: Thread = { id: "dddddd", status: "open", updated: T, comments: [{ id: "c00000", created: T, body: "x" }] };
-    await saveCommit.save(notePath, joinFile(body, [baseThread]));
+    await saveCommit.saveAndCommit(notePath, joinFile(body, [baseThread]));
 
     await createBranch(git, saveCommit, "idea1", "HEAD");
-    await saveCommit.save(notePath, joinFile(body, [{ ...baseThread, status: "resolved", updated: T }]));
+    await saveCommit.saveAndCommit(notePath, joinFile(body, [{ ...baseThread, status: "resolved", updated: T }]));
 
     await switchBranch(git, saveCommit, "main");
     // Later `updated` on main's side (still "open", but the more recent edit) should win.
-    await saveCommit.save(notePath, joinFile(body, [{ ...baseThread, status: "open", updated: LATER }]));
+    await saveCommit.saveAndCommit(notePath, joinFile(body, [{ ...baseThread, status: "open", updated: LATER }]));
 
     const result = await startMerge(platform, git, saveCommit, "idea1", "main");
     expect(result.kind).toBe("committed");
@@ -194,11 +194,11 @@ describe("merge: abort", () => {
   it("restores the pre-merge state", async () => {
     const { dir, git, saveCommit, platform } = await freshRepo();
     const notePath = path.join(dir, "note.md");
-    await saveCommit.save(notePath, "original\n");
+    await saveCommit.saveAndCommit(notePath, "original\n");
     await createBranch(git, saveCommit, "idea1", "HEAD");
-    await saveCommit.save(notePath, "ours version\n");
+    await saveCommit.saveAndCommit(notePath, "ours version\n");
     await switchBranch(git, saveCommit, "main");
-    await saveCommit.save(notePath, "theirs version\n");
+    await saveCommit.saveAndCommit(notePath, "theirs version\n");
 
     const beforeLog = (await git.must(["rev-parse", "HEAD"])).stdout.trim();
     const result = await startMerge(platform, git, saveCommit, "idea1", "main");
@@ -217,12 +217,12 @@ describe("merge: non-md conflicts", () => {
   it("keep-theirs resolves a binary/non-md conflict", async () => {
     const { dir, git, saveCommit, platform } = await freshRepo();
     const imgPath = path.join(dir, "image.txt"); // plain text stand-in; only the extension matters here
-    await saveCommit.save(imgPath, "original\n");
+    await saveCommit.saveAndCommit(imgPath, "original\n");
     // idea1 is git's "theirs" (merged INTO main, which is "ours") — name the content to match.
     await createBranch(git, saveCommit, "idea1", "HEAD");
-    await saveCommit.save(imgPath, "theirs\n");
+    await saveCommit.saveAndCommit(imgPath, "theirs\n");
     await switchBranch(git, saveCommit, "main");
-    await saveCommit.save(imgPath, "ours\n");
+    await saveCommit.saveAndCommit(imgPath, "ours\n");
 
     const result = await startMerge(platform, git, saveCommit, "idea1", "main");
     expect(result.kind).toBe("conflicts");
@@ -239,11 +239,11 @@ describe("merge: resuming after an app restart", () => {
   it("re-derives the same pending conflict from git state alone", async () => {
     const { dir, git, saveCommit, platform } = await freshRepo();
     const notePath = path.join(dir, "note.md");
-    await saveCommit.save(notePath, "original\n");
+    await saveCommit.saveAndCommit(notePath, "original\n");
     await createBranch(git, saveCommit, "idea1", "HEAD");
-    await saveCommit.save(notePath, "ours version\n");
+    await saveCommit.saveAndCommit(notePath, "ours version\n");
     await switchBranch(git, saveCommit, "main");
-    await saveCommit.save(notePath, "theirs version\n");
+    await saveCommit.saveAndCommit(notePath, "theirs version\n");
 
     const first = await startMerge(platform, git, saveCommit, "idea1", "main");
     expect(first.kind).toBe("conflicts");

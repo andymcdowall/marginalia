@@ -83,10 +83,16 @@ class TauriPdfRenderer implements PdfRenderer {
   }
 }
 
+export async function setWorkspaceRoot(root: string): Promise<void> {
+  await invoke("set_workspace", { root });
+}
+
 class TauriDialogs implements Dialogs {
   async openFolder(): Promise<string | null> {
     const result = await openDialog({ directory: true, multiple: false });
-    return typeof result === "string" ? result : null;
+    if (typeof result !== "string") return null;
+    await setWorkspaceRoot(result);
+    return result;
   }
   async saveFile(opts: { defaultName: string; extensions: string[] }): Promise<string | null> {
     const result = await saveDialog({

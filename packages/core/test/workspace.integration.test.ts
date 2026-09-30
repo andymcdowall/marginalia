@@ -4,7 +4,6 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { createNodePlatform } from "@marginalia/platform-node";
 import { openWorkspace, listTree, createNote, createFolder, renameEntry, removeEntry } from "../src/workspace/workspace.js";
-import { GitClient } from "../src/git/GitClient.js";
 
 async function tempDir(): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), "marginalia-ws-"));
@@ -71,52 +70,49 @@ describe("workspace: file tree", () => {
     expect(entries.map((e) => e.name)).toEqual(["zzz-folder", "Apple.md", "banana.md", "image.png"]);
   });
 
-  it("createNote avoids name collisions and commits each one", async () => {
+  it("createNote avoids name collisions and leaves the file uncommitted", async () => {
     const dir = await tempDir();
     const platform = platformWithConfirm(path.join(dir, "store.json"));
     await openWorkspace(platform, dir);
-    const git = new GitClient(platform, dir);
 
-    const first = await createNote(platform, git, dir);
-    const second = await createNote(platform, git, dir);
+    const first = await createNote(platform, dir);
+    const second = await createNote(platform, dir);
     expect(first).toContain("Untitled.md");
     expect(second).toContain("Untitled 2.md");
 
-    const log = await git.must(["log", "--oneline"]);
-    expect(log.stdout).toContain("new note: Untitled.md");
-    expect(log.stdout).toContain("new note: Untitled 2.md");
+    // Tree actions are part of the current draft, not commits.
+    const log = await platform.git.run(dir, ["log", "--oneline"]);
+    expect(log.stdout.trim().split("\n")).toHaveLength(1);
+    const status = await platform.git.run(dir, ["status", "--porcelain"]);
+    expect(status.stdout).toContain("Untitled.md");
   });
 
-  it("createFolder avoids name collisions (and does not commit an empty folder)", async () => {
+  it("createFolder avoids name collisions", async () => {
     const dir = await tempDir();
     const platform = platformWithConfirm(path.join(dir, "store.json"));
     await openWorkspace(platform, dir);
-    const git = new GitClient(platform, dir);
 
-    const first = await createFolder(platform, git, dir);
-    const second = await createFolder(platform, git, dir);
+    const first = await createFolder(platform, dir);
+    const second = await createFolder(platform, dir);
     expect(first).toContain("New Folder");
     expect(second).toContain("New Folder 2");
-
-    // git can't track an empty directory, so nothing should have been committed for either.
-    const log = await git.must(["log", "--oneline"]);
-    expect(log.stdout).not.toContain("new folder");
   });
 
-  it("renameEntry and removeEntry each commit", async () => {
+  it("renameEntry and removeEntry move/delete on disk without committing", async () => {
     const dir = await tempDir();
     const platform = platformWithConfirm(path.join(dir, "store.json"));
     await openWorkspace(platform, dir);
-    const git = new GitClient(platform, dir);
 
-    const notePath = await createNote(platform, git, dir);
-    const renamed = await renameEntry(platform, git, notePath, "Renamed.md");
+    const notePath = await createNote(platform, dir);
+    const renamed = await renameEntry(platform, notePath, "Renamed.md");
     expect(renamed).toContain("Renamed.md");
-    let log = await git.must(["log", "--oneline"]);
-    expect(log.stdout).toContain("rename: Untitled.md to Renamed.md");
+    expect(await platform.fs.exists(renamed)).toBe(true);
+    expect(await platform.fs.exists(notePath)).toBe(false);
 
-    await removeEntry(platform, git, renamed);
-    log = await git.must(["log", "--oneline"]);
-    expect(log.stdout).toContain("delete: Renamed.md");
+    await removeEntry(platform, renamed);
+    expect(await platform.fs.exists(renamed)).toBe(false);
+
+    const log = await platform.git.run(dir, ["log", "--oneline"]);
+    expect(log.stdout.trim().split("\n")).toHaveLength(1);
   });
 });

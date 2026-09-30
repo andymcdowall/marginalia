@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { listChangedFiles, splitFile, type ChangedFile, type Hunk } from "@marginalia/core";
 import { computeRedlineHunks } from "../editor/redline.js";
 import { activeEditorView } from "./EditorPane.js";
+import { usePlatform } from "../platformContext.js";
 import { useStore } from "../store.js";
-import { BaselinePicker } from "./BaselinePicker.js";
-import type { Hunk } from "@marginalia/core";
+import { CompareBar } from "./CompareBar.js";
+import { saveIdea } from "../ideaActions.js";
 
 function excerpt(s: string, n = 40): string {
   const clean = s.replace(/\s+/g, " ").trim();
@@ -19,16 +21,45 @@ function jumpTo(hunk: Hunk, toDoc: Int32Array): void {
   view.focus();
 }
 
+const STATUS_TITLE = { M: "Modified", A: "Added", D: "Deleted" } as const;
+
+// SPEC.md §10.3, reworked: the two dropdowns (base idea, changes idea), the list of files that
+// differ between them (orange = modified, green = added, red = deleted), and — for the open
+// file — its individual changes. Clicking a file opens it in the side-by-side compare view.
 export function ChangesPanel() {
+  const platform = usePlatform();
+  const workspace = useStore((s) => s.workspace);
   const openFile = useStore((s) => s.openFile);
+  const deletedView = useStore((s) => s.deletedView);
   const redlineOn = useStore((s) => s.redlineOn);
   const setRedlineOn = useStore((s) => s.setRedlineOn);
-  const baselineLabel = useStore((s) => s.baselineLabel);
+  const baseline = useStore((s) => s.baseline);
+  const currentBranch = useStore((s) => s.currentBranch);
+  const draftDirty = useStore((s) => s.draftDirty);
+  const draftVersion = useStore((s) => s.draftVersion);
   const baselineCleanText = useStore((s) => s.baselineCleanText);
   const activeHunkIndex = useStore((s) => s.activeHunkIndex);
   const setActiveHunkIndex = useStore((s) => s.setActiveHunkIndex);
+  const [files, setFiles] = useState<ChangedFile[]>([]);
   const [hunks, setHunks] = useState<Hunk[]>([]);
   const [toDoc, setToDoc] = useState<Int32Array>(new Int32Array());
+
+  const baseName = baseline.kind === "branch" ? baseline.name : currentBranch;
+
+  useEffect(() => {
+    if (!workspace) return;
+    let cancelled = false;
+    listChangedFiles(workspace.git, baseName)
+      .then((list) => {
+        if (!cancelled) setFiles(list);
+      })
+      .catch(() => {
+        if (!cancelled) setFiles([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [workspace, baseName, currentBranch, draftVersion]);
 
   useEffect(() => {
     if (!redlineOn || !openFile) {
@@ -59,20 +90,64 @@ export function ChangesPanel() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [hunks, toDoc, activeHunkIndex, setActiveHunkIndex]);
 
-  if (!openFile) return <div className="changes-panel-empty">No file open.</div>;
+  async function openChanged(file: ChangedFile): Promise<void> {
+    if (!workspace) return;
+    const abs = workspace.git.toAbsolute(file.path);
+    if (!file.path.endsWith(".md")) {
+      useStore.getState().addToast(`${file.path} isn't a note, so it can't be compared side by side.`);
+      return;
+    }
+    await workspace.saveCommit.flush();
+    if (file.status === "D") {
+      useStore.getState().setDeletedView(abs);
+    } else {
+      const raw = await platform.fs.readText(abs);
+      workspace.saveCommit.primeLastSaved(abs, raw);
+      useStore.getState().openFileAt(abs, splitFile(raw).threads, raw);
+    }
+    setRedlineOn(true);
+  }
+
+  const activePath = openFile?.path ?? deletedView;
 
   return (
     <div className="changes-panel">
-      <div className="changes-panel-toggle">
+      <CompareBar />
+      <div className="changes-panel-actions">
+        <button type="button" disabled={!draftDirty} onClick={() => void saveIdea()}>
+          Save idea
+        </button>
         <label>
           <input type="checkbox" checked={redlineOn} onChange={(e) => setRedlineOn(e.target.checked)} />
-          {` Redline vs ${baselineLabel}`}
+          {" Side by side"}
         </label>
       </div>
-      {redlineOn && <BaselinePicker />}
-      {redlineOn && (
+
+      <div className="changes-panel-count">
+        {files.length === 0 ? "No differences" : `${files.length} changed file${files.length === 1 ? "" : "s"}`}
+      </div>
+      {files.map((f) => {
+        const abs = workspace?.git.toAbsolute(f.path);
+        const slash = f.path.lastIndexOf("/");
+        return (
+          <div
+            key={f.path}
+            className={`changes-file changes-file-${f.status}${abs === activePath ? " active" : ""}`}
+            title={`${STATUS_TITLE[f.status]}: ${f.path}`}
+            onClick={() => void openChanged(f)}
+            role="button"
+            tabIndex={0}
+          >
+            <span className="changes-file-name">{f.path.slice(slash + 1)}</span>
+            {slash >= 0 && <span className="changes-file-dir">{f.path.slice(0, slash)}</span>}
+            <span className="changes-file-status">{f.status}</span>
+          </div>
+        );
+      })}
+
+      {redlineOn && openFile && (
         <>
-          <div className="changes-panel-count">{hunks.length} changes</div>
+          <div className="changes-panel-count">{hunks.length} changes in this file</div>
           <div className="changes-panel-nav">
             <button
               type="button"

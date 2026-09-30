@@ -1,9 +1,9 @@
 const SHORTCUTS: [string, string][] = [
-  ["Cmd+S", "Save now"],
+  ["Cmd+S", "Save idea (commit your changes)"],
   ["Cmd+N", "New note"],
   ["Cmd+E", "Toggle Live/Source mode"],
   ["Cmd+Shift+M", "Comment on selection"],
-  ["Cmd+Shift+R", "Toggle redline"],
+  ["Cmd+Shift+R", "Toggle side-by-side compare"],
   ["Cmd+B / Cmd+I", "Bold / italic selection"],
   ["Cmd+K", "Insert link"],
   ["Cmd+F", "Find"],

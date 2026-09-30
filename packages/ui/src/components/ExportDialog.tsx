@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { resolveBaselineSha, baselineText, cleanText, toHtml, redlineHtml, type PdfOptions } from "@marginalia/core";
+import { resolveBaselineSha, baselineText, cleanText, splitFile, toHtml, redlineHtml, type PdfOptions } from "@marginalia/core";
 import { usePlatform } from "../platformContext.js";
 import { useStore } from "../store.js";
 import { activeEditorView } from "./EditorPane.js";
@@ -36,7 +36,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
               const sha = await resolveBaselineSha(workspace.git, baseline, currentBranch);
               const rel = workspace.git.toRelative(openFile.path);
               const text = await baselineText(workspace.git, sha, rel);
-              return redlineHtml(platform, baseDir, body, cleanText(text).text, baselineLabel, currentBranch);
+              return redlineHtml(platform, baseDir, body, cleanText(splitFile(text).body).text, baselineLabel, currentBranch);
             })();
 
       const outPath = await platform.dialogs.saveFile({ defaultName: `${name}.pdf`, extensions: ["pdf"] });

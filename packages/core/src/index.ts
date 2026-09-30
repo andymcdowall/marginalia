@@ -27,3 +27,5 @@ export * from "./versions/snapshots.js";
 export * from "./versions/branches.js";
 export * from "./versions/baseline.js";
 export * from "./versions/history.js";
+export * from "./versions/draft.js";
+export * from "./versions/compare.js";

@@ -4,6 +4,8 @@ import { useStore } from "../store.js";
 import { ExportDialog } from "./ExportDialog.js";
 import { activeEditorView } from "./EditorPane.js";
 import { setSourceMode } from "../editor/sourceMode.js";
+import { showPrompt } from "../prompt.js";
+import { saveIdea } from "../ideaActions.js";
 
 // SPEC.md §12. File name, Live/Source toggle, Comment, Redline toggle + baseline label, Snapshot,
 // Export.
@@ -13,7 +15,8 @@ export function Toolbar() {
   const toggleSourceMode = useStore((s) => s.toggleSourceMode);
   const redlineOn = useStore((s) => s.redlineOn);
   const setRedlineOn = useStore((s) => s.setRedlineOn);
-  const baselineLabel = useStore((s) => s.baselineLabel);
+  const baseline = useStore((s) => s.baseline);
+  const draftDirty = useStore((s) => s.draftDirty);
   const workspace = useStore((s) => s.workspace);
   const currentBranch = useStore((s) => s.currentBranch);
   const [exportOpen, setExportOpen] = useState(false);
@@ -37,9 +40,11 @@ export function Toolbar() {
 
   async function handleSnapshot(): Promise<void> {
     if (!workspace) return;
-    const name = window.prompt("Snapshot name:");
+    // A snapshot tags the latest saved commit, so unsaved changes have to be saved first.
+    if (draftDirty && !(await saveIdea())) return;
+    const name = await showPrompt("Snapshot name:");
     if (!name) return;
-    const note = window.prompt("Note (optional):") ?? "";
+    const note = (await showPrompt("Note (optional):")) ?? "";
     await createSnapshot(workspace.git, workspace.saveCommit, currentBranch, name, note);
   }
 
@@ -56,7 +61,10 @@ export function Toolbar() {
           Comment
         </button>
         <button type="button" className={redlineOn ? "active" : ""} onClick={() => setRedlineOn(!redlineOn)} title="Cmd+Shift+R">
-          {`Redline vs ${baselineLabel}`}
+          {`Compare with ${baseline.kind === "branch" ? baseline.name : "origin"}`}
+        </button>
+        <button type="button" disabled={!draftDirty} onClick={() => void saveIdea()} title="Cmd+S">
+          Save idea
         </button>
         <button type="button" onClick={() => void handleSnapshot()}>
           Snapshot

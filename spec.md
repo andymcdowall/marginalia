@@ -24,7 +24,7 @@ This spec is written to be executed directly. Where it says **MUST**, do exactly
 - A folder workspace with a file tree, containing markdown notes and images.
 - An Obsidian-style live-preview editor, with a source-mode toggle.
 - Range comments stored in the file, with replies, resolve/reopen, orphan handling, and re-anchoring.
-- A git backend: auto-commit on every save, named snapshots, idea branches (create/switch/rename/delete), merge with a conflict UI, per-file history, and restore.
+- A git backend: autosave writes files into a current draft, "Save idea" commits it, named snapshots, idea branches (create/switch/rename/delete), merge with a conflict UI, per-file history, and restore.
 - A redline diff: word-level, toggleable, editable while on, with per-change revert, a selectable baseline, and change navigation.
 - PDF export, clean or redline, with a default theme. Comments never appear in exports.
 
@@ -270,8 +270,8 @@ Numbers are computed at runtime, never stored. Order threads by start position, 
 - **Merge in progress:** if `.git/MERGE_HEAD` exists, open the Merge view (section 9.4) immediately.
 - Persist the last workspace in `AppStore` (`lastWorkspace`) and reopen it on launch.
 - **File tree:** lazy-list directories. Show folders, `.md` files, and images (`png jpg jpeg gif webp svg`). Hide dotfiles and dot-folders. Sort folders first, then case-insensitive by name.
-- **Tree actions:** new note (creates `Untitled.md`, or `Untitled 2.md` etc., then starts rename), new folder, rename, delete (confirm), and drag-move. Each is followed by a commit: `git add -A -- <paths>` then `git commit -m "<action>: <path>"`.
-- **External change to the open file** (from a watch event): read the file. If it equals the last content we wrote, ignore it. If the editor has no unsaved changes, reload silently and commit `sync: external changes`. Otherwise show a banner: "File changed on disk. [Reload] [Keep mine]". *Keep mine* saves, which overwrites and commits.
+- **Tree actions:** new note (creates `Untitled.md`, or `Untitled 2.md` etc., then starts rename), new folder, rename, delete (confirm), and drag-move. Each only changes the working tree (it becomes part of the current draft); nothing is committed until the idea is saved.
+- **External change to the open file** (from a watch event): read the file. If it equals the last content we wrote, ignore it. If the editor has no unsaved changes, reload silently. Otherwise show a banner: "File changed on disk. [Reload] [Keep mine]". *Keep mine* saves, which overwrites the file (still part of the draft).
 
 ---
 
@@ -303,7 +303,7 @@ A `ViewPlugin` builds decorations from `syntaxTree(state)` over `view.visibleRan
 - Setup: `history()`, default keymap, `search()` keymap (Cmd+F), line wrapping, `markdown({ base: markdownLanguage, codeLanguages: languages })` with GFM, and Cmd+B / Cmd+I / Cmd+K to wrap the selection in `**`, `*`, or `[](url)`.
 
 ### 7.3 Autosave
-Triggered by a 1500 ms debounce after the last doc change, Cmd+S, window blur, switching files, switching branches, and `before-quit`. The save pipeline is `saveCommit` (section 9.1). The status bar shows "Saved" or "Saving…", plus an error state with a retry button.
+Triggered by a 1500 ms debounce after the last doc change, window blur, switching files, switching ideas, and `before-quit`. Autosave **only writes the file** (`SaveCommit.save`, section 9.1); it never commits. The edits form the idea's *current draft*. Cmd+S and the toolbar's "Save idea" button commit the draft (section 9.1). The status bar shows "Saving…", "Unsaved changes" (draft differs from the idea's latest commit) or "Idea saved", plus an error state with a retry button.
 
 ---
 
@@ -336,27 +336,40 @@ With a non-empty selection, press Cmd+Shift+M or the "Comment" toolbar button. I
 
 `GitClient` wraps `platform.git.run(repoRoot, ['-c','core.quotepath=false','-c','color.ui=never', ...args])` and throws a `GitError { args, code, stderr }` on unexpected non-zero exits.
 
-### 9.1 Save → commit (`saveCommit.ts`)
+### 9.1 Draft vs. saved idea (`saveCommit.ts`, `draft.ts`)
+An **idea** is a git branch; its **saved** state is the branch's latest commit. The **current draft** is whatever differs in the working tree (modified, added, deleted, untracked files). Autosave and tree actions (new/rename/delete/move) only change the working tree.
 ```
-saveCommit(path, content):
+save(path, content):                 # autosave
   if content === lastSaved[path]: return
-  fs.writeText(path, content); lastSaved[path] = content
-  if mergeInProgress: return                     # no commits during a merge
-  git add -- <rel>
-  if `git diff --cached --quiet -- <rel>` exits 0: return   # nothing staged
-  git commit -m "autosave: <rel>" -- <rel>
+  fs.writeText(path, content); lastSaved[path] = content     # no git
+
+commitDraft(message):                # "Save idea" (Cmd+S)
+  if mergeInProgress: return
+  git add -A
+  if `git diff --cached --quiet` exits 0: return false       # nothing to save
+  git commit -m <message>; return true
 ```
-Saves are serialized through a single promise queue, so git commands never overlap.
+- "Save idea" prompts for a one-line message, prefilled from `draftSummary` ("Update a.md, b.md and 2 more").
+- `hasDraftChanges` = `git status --porcelain` is non-empty.
+- Everything is serialized through a single promise queue, so git commands never overlap.
+- `saveAndCommit(path, content, message?)` (write + commit that one file) exists for tests and tooling; the UI does not use it.
+
+### 9.1.1 Switching ideas with a draft (`switchIdea`)
+Choosing another idea in the right-hand dropdown checks it out. If there is a draft, the user picks **Carry over** or **Discard changes** (or cancels):
+- **Carry over:** `git stash push -u`, `git switch <target>`, `git stash pop`. If the pop conflicts, reset the tree, switch back to the original idea and `git stash pop` there, so the draft is never lost, and show a toast.
+- **Discard:** `git reset --hard HEAD`, `git clean -fd`, then `git switch`.
+- After any checkout or discard, `SaveCommit.clearLastSaved()` so a later save isn't skipped as "unchanged".
 
 ### 9.2 Snapshots (`snapshots.ts`)
 - **Create** (toolbar camera button → dialog with a name and an optional note): flush the save, compute `slug` (lowercased; non-alphanumerics become `-`; trimmed; max 40 characters; `-2`, `-3`… on collision), then run `git tag -a snapshot/<branch>/<slug> -m "<name>\n\n<note>"`.
 - **List:** `git for-each-ref refs/tags/snapshot/<branch>/ --sort=-taggerdate --format=%(refname:short)%1f%(*objectname)%1f%(taggerdate:iso-strict)%1f%(contents:subject)%1f%(contents:body)%1e`.
-- **Restore a file to a snapshot or commit:** `git show <sha>:<rel>` → write it into the editor as a normal edit (it goes through `splitFile`) → save → commit with message `restore: <rel> to <label>`. Never reset or rewrite history.
+- **Restore a file to a snapshot or commit:** `git show <sha>:<rel>` → write it to the file as a normal edit. It becomes part of the current draft; saving the idea commits it. Never reset or rewrite history.
+- **Snapshots tag the latest commit**, so if there is a draft the UI saves the idea first.
 
 ### 9.3 Ideas (branches) (`branches.ts`)
 - **List:** `git for-each-ref refs/heads --format=%(refname:short)%1f%(objectname)%1f%(committerdate:iso-strict)%1e`. The current branch comes from `git branch --show-current`.
 - **Create** (from the current HEAD, a snapshot, or a commit): validate with `git check-ref-format --branch <name>`, flush the save, `sha = git rev-parse <start>^{commit}`, `git switch -c <name> <sha>`, then `git config branch.<name>.marginaliaBase <sha>`.
-- **Switch:** flush the save, `git switch <name>`, then reload the open file (close it if it doesn't exist on that branch) and refresh the tree.
+- **Switch:** flush the save, handle the draft (section 9.1.1), `git switch <name>`, then reload the open file (close it if it doesn't exist on that branch) and refresh the tree.
 - **Rename:** `git branch -m <old> <new>` (git moves the config section itself). Then rename the snapshot tags: for each tag, `git tag -a snapshot/<new>/<slug> -m <same message> <peeled sha>` followed by `git tag -d <old tag>`. The message comes from `%(contents)`.
 - **Delete:** not allowed for the current branch. Show a confirm dialog that lists the branch's snapshots, then `git branch -D <name>`, delete its `snapshot/<name>/*` tags, and `git config --remove-section branch.<name>` (ignore errors).
 - UI: the status-bar branch button opens `BranchMenu`, which has the list, a "New idea…", a "Merge into current…", and rename and delete on each item. The UI says "idea", never "branch".
@@ -389,19 +402,22 @@ merge(source into current):
 ### 9.5 History (`history.ts` + `HistoryPanel`)
 - For the current file on the current branch: `git log --format=%H%x1f%P%x1f%aI%x1f%s%x1e -- <rel>`.
 - Group consecutive `autosave:` commits into one collapsible row ("12 autosaves, 3:02–3:40 PM"). Snapshots (matched by peeled sha) show as prominent rows with their name and note. Merge commits (2+ parents) get a merge icon.
-- Row actions: **View** (a read-only modal rendering that version), **Set as baseline**, **Restore**, and **Start new idea from here**.
+- Row actions: **View** (a read-only modal rendering that version), **Restore** (writes that version into the working tree as part of the draft), and **Start new idea from here**.
 
-### 9.6 Baseline (`baseline.ts`)
+### 9.6 Compare (`baseline.ts`, `compare.ts`)
+The compare view has two sides:
+- **Left = base:** an idea's latest commit. Picking a different idea only changes the diff. The default is `main` when it exists, otherwise the checked-out idea.
+- **Right = changes:** the checked-out idea **plus its draft** (the working tree). It is the only editable side. Picking a different idea checks it out (section 9.1.1). The dropdown label reads `<idea> (unsaved changes)` while there is a draft.
+- Dropdown entries are ideas at their latest commit only (no snapshots or arbitrary commits).
+
 ```ts
-type Baseline =
-  | { kind: 'origin' }                          // default
-  | { kind: 'snapshot'; tag: string }
-  | { kind: 'branch'; name: string }            // re-resolved after every commit
-  | { kind: 'commit'; sha: string };
+type Baseline =                                 // internal; the UI only produces `branch`
+  | { kind: 'origin' } | { kind: 'snapshot'; tag: string }
+  | { kind: 'branch'; name: string } | { kind: 'commit'; sha: string };
 ```
-- **Resolve `origin`:** use `git config branch.<cur>.marginaliaBase`. If that's missing, use `git merge-base HEAD main`. If that fails, use the root commit (`git rev-list --max-parents=0 HEAD`, taking the last line).
-- **Baseline text:** `git show <sha>:<rel>`. If that fails, the file didn't exist then, so use `""`. Then `splitFile(...).body`.
-- The baseline is per open file and per session, and resets to `origin` when switching branches.
+- **Base text:** `git show <sha>:<rel>` where `sha = git rev-parse <idea>`; if that fails the file didn't exist there, so use `""`. Then `splitFile(...).body`.
+- **Changed files** (`listChangedFiles(git, baseIdea)`): `git diff --name-status --no-renames -z <sha>` (base commit vs working tree) plus `git ls-files --others --exclude-standard` (untracked files count as Added, or Modified if the base also has them). Hidden (dot) paths are dropped. This is a direct two-dot comparison, not a merge-base (pull-request style) diff.
+- The base re-resolves after every commit, checkout, or base change.
 
 ---
 
@@ -426,12 +442,12 @@ This removes all milestone tags. `toDoc[i]` is the doc offset of clean char `i`;
 
 ### 10.3 Rendering (`editor/redline.ts`)
 - While redline mode is on, a `StateField` holds `{ baselineClean, hunks }`, recomputed 150 ms after doc changes, or immediately on toggle or baseline change.
-- **Insertions:** a mark `cm-ins` (green underline plus a light green background) from `toDoc[curFrom]` to `toDoc[curTo]`.
-- **Deletions:** `Decoration.widget({ widget: DeletedText(deleted), side: -1 })` at `toDoc[curFrom]`, rendered as red strikethrough text.
-- Editing stays fully enabled.
-- **Hover a hunk** to show a small popover with **Revert**, which also works via the Changes panel.
-- **Changes panel** (right sidebar tab): a count, a list of hunks (short before → after excerpts), **Prev/Next** buttons (Alt+↑/↓), and a baseline picker dropdown (Origin, snapshots, ideas, "Pick from history…").
-- The toolbar shows "Redline vs ⟨baseline label⟩" with a toggle (Cmd+Shift+R).
+- **Insertions:** a mark `cm-ins` (green underline plus a light green background) from `toDoc[curFrom]` to `toDoc[curTo]` in the editable **right pane**.
+- **Deletions** are not drawn inline. The **left pane** (`editor/basePane.ts`) renders the base text read-only (same live preview) with each deleted range (`baseFrom`..`baseTo`) struck through in red (`cm-del`). The two panes scroll together proportionally.
+- The right pane stays fully editable.
+- **Changes panel** (right sidebar tab): the two dropdowns side by side (**Base** | **Changes**), a **Save idea** button, a **Side by side** toggle, the list of changed files, and, for the open file, a count of its changes with **Prev/Next** buttons (Alt+↑/↓) and a hunk list. File rows are colored like VS Code: orange = modified (`M`), green = added (`A`), red = deleted (`D`). Clicking a row opens that file in the side-by-side view; a deleted file shows the base on the left and "Deleted in <idea>" on the right. Non-`.md` files are listed but not diffable.
+- Any file you open in compare mode shows its changes, even if it isn't in the list.
+- The toolbar shows "Compare with ⟨base idea⟩" as a toggle (Cmd+Shift+R), and "Save idea".
 
 ### 10.4 Revert (`diff/revert.ts`, pure function returning CodeMirror-agnostic changes)
 ```ts
@@ -447,7 +463,7 @@ revertHunk(doc: string, clean: CleanText, hunk: Hunk): { from: number; to: numbe
 ## 11. PDF export
 
 ### 11.1 Flow
-Toolbar Export → a dialog with **Clean** / **Redline (vs current baseline)** and page size (Letter default, A4) → `dialogs.saveFile({defaultName: "<note>.pdf"})` → build the HTML → `platform.pdf.renderHtmlToPdf`.
+Toolbar Export → a dialog with **Clean** / **Redline (base idea → checked-out idea, including unsaved changes)** and page size (Letter default, A4) → `dialogs.saveFile({defaultName: "<note>.pdf"})` → build the HTML → `platform.pdf.renderHtmlToPdf`.
 
 ### 11.2 HTML (`export/toHtml.ts`, `export/redlineHtml.ts`)
 - **Clean:** `cleanText(body).text` → remark-parse + gfm → remark-rehype → rehype-stringify. Images are embedded as `data:` URIs (via `fs.readBinary`, with a MIME type from the file extension). The result is wrapped in a full HTML document with `<style>` inlined from `theme.css`.
@@ -476,7 +492,7 @@ Toolbar Export → a dialog with **Clean** / **Redline (vs current baseline)** a
 ## 12. UI shell
 
 - **Layout:** a left sidebar (the file tree, 240px, collapsible with Cmd+\); a center editor (max text width 760px, centered); a right sidebar (320px, collapsible with Cmd+Shift+\) with tabs **Comments | Changes | History**; a top toolbar; and a bottom status bar.
-- **Toolbar:** file name, then Live/Source toggle, Comment, Redline toggle + baseline label, Snapshot, and Export.
+- **Toolbar:** file name, then Live/Source toggle, Comment, Compare toggle + base idea, Save idea, Snapshot, and Export.
 - **Status bar:** idea (branch) button, save state, a merge-in-progress badge, and word count.
 - **Empty states:** with no workspace open, a centered "Open folder" button; with no file open, "Select a note or press Cmd+N".
 - **Styling:** plain CSS with variables in `app.css`, following the system light/dark mode through `prefers-color-scheme` (the editor theme too), and the system font for the UI.
