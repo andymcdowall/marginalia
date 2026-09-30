@@ -105,6 +105,7 @@ export function buildLivePreviewDecorations(view: EditorView): DecorationSet {
   const active = activeLineNumbers(view);
   const doc = view.state.doc;
   const quoteLines = new Set<number>();
+  const listItemLines = new Set<number>();
   const codeBlockLines = new Map<number, "fence" | "body">();
 
   for (const { from, to } of view.visibleRanges) {
@@ -174,6 +175,12 @@ export function buildLivePreviewDecorations(view: EditorView): DecorationSet {
             }
             break;
           }
+          case "ListItem": {
+            const startLine = doc.lineAt(node.from).number;
+            const endLine = doc.lineAt(node.to).number;
+            for (let l = startLine; l <= endLine; l++) listItemLines.add(l);
+            break;
+          }
           case "Blockquote": {
             const startLine = doc.lineAt(node.from).number;
             const endLine = doc.lineAt(node.to).number;
@@ -219,6 +226,10 @@ export function buildLivePreviewDecorations(view: EditorView): DecorationSet {
   for (const l of quoteLines) {
     const line = doc.line(l);
     entries.push({ from: line.from, to: line.from, decoration: Decoration.line({ class: "cm-quote" }) });
+  }
+  for (const l of listItemLines) {
+    const line = doc.line(l);
+    entries.push({ from: line.from, to: line.from, decoration: Decoration.line({ class: "cm-li" }) });
   }
   for (const [l, kind] of codeBlockLines) {
     const line = doc.line(l);

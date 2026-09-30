@@ -130,5 +130,12 @@ Complete (Phases 0–7)
 - `pnpm verify` passes (102 tests). See DECISIONS.md for the trade-offs.
 - **Manual check still needed:** open two ideas, edit, watch the file list colors, switch the right dropdown with unsaved changes (carry and discard), delete/add a note and open it from the list.
 
+### Post-Phase 7: Per-section custom CSS (requested by the user)
+- Core: `document/frontmatter.ts` (`splitFrontmatter`, `parseSectionStyles` — a hand-rolled parser for a `sectionStyles:` frontmatter block only), `export/scopeCss.ts` (`slugifyHeading`, `scopeCss` — brace-depth-counting selector-prefixer), `export/htmlTransform.ts` (`rehypeAddClasses` adds `md-*` classes to common elements; `rehypeWrapSections` wraps each H1's content in `<div class="md-section" data-section="...">`), `export/sectionCss.ts` (`buildSectionCss` reads and scopes each mapped stylesheet). `embedImages.ts`'s path-joining helper is now exported as `resolveRelativePath` and shared. Wired into both `toHtml` (also now strips frontmatter before rendering) and `redlineHtml`.
+- UI: `editor/sectionStyles.ts` (`computeSections`, `sectionsField` — H1-to-next-H1 line ranges as a `cm-section-<slug>` class, same pattern as `cm-quote`), `editor/useSectionCss.ts` (reads a note's frontmatter, loads/scopes the mapped stylesheet(s), gated on the frontmatter text so it doesn't re-read on every keystroke), wired into `EditorPane` as an injected `<style>` tag. `basePane.ts` (compare view's read-only left pane) also gets `sectionsField` for consistency. `livePreview.ts` additionally gives list items a `cm-li` line class (the spec table's "ListMark, Table | styled" entry previously had no class of its own for list items).
+- SPEC.md §11.4 documents the feature; the old "Custom export CSS" out-of-scope line is removed.
+- `pnpm verify` passes (lint + typecheck + 120 tests + `cargo check`). New tests: `frontmatter.test.ts`, `scopeCss.test.ts`, an export.test.ts section covering class-adding/section-wrapping/scoped-stylesheet-inclusion end to end, `ui/test/sectionStyles.test.ts`, and a `cm-li` case in `livePreview.test.ts`.
+- **Manual check still needed** (same caveat as everything else in this file): no interactive GUI click-through — open a note with a `sectionStyles` frontmatter block and confirm the live editor actually applies the per-section styling, and that exported PDFs do too.
+
 ## Blocked
 (none)

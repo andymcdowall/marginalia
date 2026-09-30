@@ -9,6 +9,7 @@ import type { Thread } from "@marginalia/core";
 import { milestonesField } from "./milestones.js";
 import { livePreview } from "./livePreview.js";
 import { frontmatterField } from "./frontmatter.js";
+import { sectionsField } from "./sectionStyles.js";
 import { editorTheme } from "./theme.js";
 import { sourceModeField } from "./sourceMode.js";
 import { threadsField, activeThreadIdField, commentHighlights } from "./commentHighlights.js";
@@ -65,6 +66,7 @@ export function editorSetup(initialThreads: Thread[] = []): Extension[] {
     markdownExtensions(),
     sourceModeField,
     frontmatterField,
+    sectionsField,
     milestonesField,
     threadsField.init(() => initialThreads),
     activeThreadIdField,
