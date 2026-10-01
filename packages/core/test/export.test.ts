@@ -127,3 +127,29 @@ describe("Per-section custom CSS (frontmatter sectionStyles)", () => {
     expect(html).toContain('<h1 class="md-h1">Part One</h1>');
   });
 });
+
+describe("Doc-wide custom CSS (frontmatter css key)", () => {
+  it("includes the doc-wide stylesheet unscoped, before any section-scoped CSS", async () => {
+    const dir = await tempDir();
+    const platform = createNodePlatform(path.join(dir, "store.json"));
+    await fs.writeFile(path.join(dir, "note.css"), "body { color: navy; }\n");
+    await fs.writeFile(path.join(dir, "part-one.css"), "h1 { color: purple; }\n");
+
+    const body = '---\ncss: note.css\nsectionStyles:\n  "Part One": part-one.css\n---\n# Part One\n\nText.\n';
+    const html = await toHtml(platform, dir, body);
+    expect(html).toContain("body { color: navy; }");
+    expect(html).toContain('.md-section[data-section="part-one"] h1 { color: purple; }');
+    // doc-wide CSS comes first, section CSS after
+    expect(html.indexOf("body { color: navy; }")).toBeLessThan(
+      html.indexOf('.md-section[data-section="part-one"] h1')
+    );
+  });
+
+  it("skips an unreadable doc-wide stylesheet instead of failing the export", async () => {
+    const dir = await tempDir();
+    const platform = createNodePlatform(path.join(dir, "store.json"));
+    const body = "---\ncss: missing.css\n---\n# Hello\n\nText.\n";
+    const html = await toHtml(platform, dir, body);
+    expect(html).toContain('<h1 class="md-h1">Hello</h1>');
+  });
+});

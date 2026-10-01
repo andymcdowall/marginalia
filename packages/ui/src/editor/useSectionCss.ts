@@ -1,11 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import { splitFrontmatter, parseSectionStyles, resolveRelativePath, scopeCss, slugifyHeading } from "@marginalia/core";
+import {
+  splitFrontmatter,
+  parseSectionStyles,
+  parseDocCss,
+  resolveRelativePath,
+  scopeCss,
+  slugifyHeading,
+} from "@marginalia/core";
 import type { Platform } from "@marginalia/core";
 
-// Reads a note's frontmatter `sectionStyles` map and returns the combined CSS, scoped to each
-// section's `cm-section-<slug>` line class (sectionStyles.ts), for injection as a <style> tag in
-// the live editor — the live-preview counterpart of `buildSectionCss` (core/export/sectionCss.ts),
-// which does the same thing for exported HTML's `.md-section[data-section]` containers.
+// Reads a note's frontmatter `css` key (doc-wide, unscoped) and `sectionStyles` map (scoped to
+// each section's `cm-section-<slug>` line class — sectionStyles.ts) and returns the combined CSS
+// for injection as a <style> tag in the live editor — the live-preview counterpart of
+// `buildDocCss`/`buildSectionCss` (core/export/sectionCss.ts), which do the same for exported
+// HTML's unscoped `<style>` content and `.md-section[data-section]` containers respectively.
 // Re-reads the referenced files only when the frontmatter text or the open file changes, not on
 // every keystroke, since `docText` otherwise mirrors every edit.
 export function useSectionCss(platform: Platform, path: string | undefined, docText: string): string {
@@ -23,7 +31,8 @@ export function useSectionCss(platform: Platform, path: string | undefined, docT
     lastKeyRef.current = key;
 
     const sectionStyles = parseSectionStyles(frontmatter);
-    if (sectionStyles.size === 0) {
+    const docCssPath = parseDocCss(frontmatter);
+    if (sectionStyles.size === 0 && !docCssPath) {
       setCss("");
       return;
     }
@@ -32,6 +41,14 @@ export function useSectionCss(platform: Platform, path: string | undefined, docT
     let cancelled = false;
     void (async () => {
       let combined = "";
+      if (docCssPath) {
+        try {
+          const absPath = resolveRelativePath(baseDir, docCssPath);
+          combined += (await platform.fs.readText(absPath)) + "\n";
+        } catch {
+          // Missing/unreadable stylesheet — skip it, matching the export path's behavior.
+        }
+      }
       for (const [heading, relPath] of sectionStyles) {
         try {
           const absPath = resolveRelativePath(baseDir, relPath);

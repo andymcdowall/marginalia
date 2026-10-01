@@ -6,10 +6,10 @@ import rehypeStringify from "rehype-stringify";
 import type { Platform } from "../platform.js";
 import { cleanText } from "../diff/cleanText.js";
 import { wordDiff } from "../diff/wordDiff.js";
-import { splitFrontmatter, parseSectionStyles } from "../document/frontmatter.js";
+import { splitFrontmatter, parseSectionStyles, parseDocCss } from "../document/frontmatter.js";
 import { embedImages } from "./embedImages.js";
 import { rehypeAddClasses, rehypeWrapSections } from "./htmlTransform.js";
-import { buildSectionCss } from "./sectionCss.js";
+import { buildDocCss, buildSectionCss } from "./sectionCss.js";
 import { wrapExportDocument } from "./toHtml.js";
 
 // SPEC.md §11.2 "Redline": diff against the baseline, wrap insertions as <ins> and deletions as
@@ -24,11 +24,12 @@ export async function redlineHtml(
   baselineLabel: string,
   ideaLabel: string
 ): Promise<string> {
-  // Extracted purely to find a sectionStyles map — the diff itself still runs against
+  // Extracted purely to find a sectionStyles/css map — the diff itself still runs against
   // currentBody's full clean text (frontmatter included) to match baselineClean's own
   // preparation upstream, so this doesn't change hunk offsets or counts.
   const { frontmatter } = splitFrontmatter(currentBody);
   const sectionStyles = parseSectionStyles(frontmatter);
+  const docCssPath = parseDocCss(frontmatter);
 
   const curClean = cleanText(currentBody).text;
   const hunks = wordDiff(baselineClean, curClean);
@@ -55,6 +56,7 @@ export async function redlineHtml(
 
   const date = new Date().toISOString().slice(0, 10);
   const header = `<p class="redline-header">Changes from ${baselineLabel} to ${ideaLabel} — ${date}</p>\n`;
+  const docCss = await buildDocCss(platform, baseDir, docCssPath);
   const sectionCss = await buildSectionCss(platform, baseDir, sectionStyles);
-  return wrapExportDocument(String(file), header, sectionCss);
+  return wrapExportDocument(String(file), header, docCss + sectionCss);
 }

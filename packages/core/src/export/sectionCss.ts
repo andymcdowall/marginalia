@@ -24,3 +24,15 @@ export async function buildSectionCss(
   }
   return css;
 }
+
+// Reads the stylesheet referenced by a note's frontmatter `css` key (doc-wide, unscoped —
+// unlike `buildSectionCss`), or returns "" if there's no `css` key or it can't be read.
+export async function buildDocCss(platform: Platform, baseDir: string, docCssPath: string | null): Promise<string> {
+  if (!docCssPath) return "";
+  try {
+    const absPath = resolveRelativePath(baseDir, docCssPath);
+    return (await platform.fs.readText(absPath)) + "\n";
+  } catch {
+    return "";
+  }
+}

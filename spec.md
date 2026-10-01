@@ -482,10 +482,17 @@ Toolbar Export → a dialog with **Clean** / **Redline (base idea → checked-ou
   ---
   ```
   Each key is an H1's exact heading text; the value is a CSS file path, resolved relative to the note's directory (same convention as image references, §11.2). Parsed by `parseSectionStyles` — a hand-rolled parser for exactly this one shape, not general YAML.
-- **Section bounds:** a section runs from one H1 heading up to (not including) the next H1, or the end of the document. Content before the first H1 belongs to no section and gets no per-section CSS.
-- **Export:** each section's top-level content is wrapped in `<div class="md-section" data-section="<slug>">` (`rehypeWrapSections`); a mapped stylesheet is read, scoped to `.md-section[data-section="<slug>"]` (`scopeCss`, a brace-depth-counting selector-prefixer — at-rules like `@media` are copied through unscoped, a known limitation), and inlined into the exported `<style>` tag alongside `theme.css`.
-- **Live preview:** the same H1-to-next-H1 sections get a `cm-section-<slug>` line class in the editor (`editor/sectionStyles.ts`); the same mapped stylesheet is read and scoped to `.cm-section-<slug>` instead, then injected as a `<style>` element in `EditorPane` (`editor/useSectionCss.ts`). `slugifyHeading` is shared between both paths so the slugs always match.
-- A missing or unreadable stylesheet is skipped silently in both paths (matches `embedImages.ts`'s handling of an unreadable image).
+- A note MAY also declare a single doc-wide stylesheet with a top-level `css:` key, applied unscoped (the whole note, not just one section):
+  ```yaml
+  ---
+  css: styles/note.css
+  ---
+  ```
+  Parsed by `parseDocCss`. `css` and `sectionStyles` can both be present: the doc-wide stylesheet is included first, so a section's scoped rules win on equal specificity.
+- **Section bounds:** a section runs from one H1 heading up to (not including) the next H1, or the end of the document. Content before the first H1 belongs to no section and gets no per-section CSS (but still gets any doc-wide `css`).
+- **Export:** each section's top-level content is wrapped in `<div class="md-section" data-section="<slug>">` (`rehypeWrapSections`); a mapped stylesheet is read, scoped to `.md-section[data-section="<slug>"]` (`scopeCss`, a brace-depth-counting selector-prefixer — at-rules like `@media` are copied through unscoped, a known limitation), and inlined into the exported `<style>` tag alongside `theme.css`. The doc-wide `css` stylesheet is inlined as-is, unscoped (`buildDocCss`).
+- **Live preview:** the same H1-to-next-H1 sections get a `cm-section-<slug>` line class in the editor (`editor/sectionStyles.ts`); the same mapped stylesheet is read and scoped to `.cm-section-<slug>` instead, then injected as a `<style>` element in `EditorPane` (`editor/useSectionCss.ts`), with the doc-wide stylesheet injected unscoped first. `slugifyHeading` is shared between both paths so the slugs always match.
+- A missing or unreadable stylesheet (doc-wide or per-section) is skipped silently in both paths (matches `embedImages.ts`'s handling of an unreadable image).
 
 ### 11.3 Native PDF (`src-tauri/src/pdf.rs`)
 **Primary approach:**

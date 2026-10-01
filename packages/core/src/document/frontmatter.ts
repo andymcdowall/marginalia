@@ -55,3 +55,16 @@ export function parseSectionStyles(frontmatter: string | null): Map<string, stri
   }
   return map;
 }
+
+// Reads a top-level `css:` key out of frontmatter, e.g. `css: styles/note.css`. Applies to the
+// whole note (export and live preview), unscoped — unlike `sectionStyles`, which only covers one
+// H1's section. Only a top-level (unindented) `css:` line counts, so a `css:` key nested under
+// something else (there currently isn't one, but just in case) isn't mistaken for this one.
+export function parseDocCss(frontmatter: string | null): string | null {
+  if (!frontmatter) return null;
+  for (const line of frontmatter.split(/\r?\n/)) {
+    const m = /^css:\s*(.+)$/.exec(line);
+    if (m) return m[1]!.trim().replace(/^["']|["']$/g, "");
+  }
+  return null;
+}

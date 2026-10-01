@@ -137,5 +137,12 @@ Complete (Phases 0–7)
 - `pnpm verify` passes (lint + typecheck + 120 tests + `cargo check`). New tests: `frontmatter.test.ts`, `scopeCss.test.ts`, an export.test.ts section covering class-adding/section-wrapping/scoped-stylesheet-inclusion end to end, `ui/test/sectionStyles.test.ts`, and a `cm-li` case in `livePreview.test.ts`.
 - **Manual check still needed** (same caveat as everything else in this file): no interactive GUI click-through — open a note with a `sectionStyles` frontmatter block and confirm the live editor actually applies the per-section styling, and that exported PDFs do too.
 
+### Post-Phase 7: Doc-wide custom CSS (follow-up requested by the user)
+- Core: `document/frontmatter.ts` adds `parseDocCss` (a single top-level `css:` frontmatter key, unscoped, separate from `sectionStyles`); `export/sectionCss.ts` adds `buildDocCss`. Wired into `toHtml`/`redlineHtml` so the doc-wide stylesheet is inlined first, before any section-scoped CSS (so a section's own rules win on equal specificity).
+- UI: `editor/useSectionCss.ts` reads `css` the same way, unscoped, and injects it before the section-scoped CSS in the same `<style>` tag.
+- SPEC.md §11.4 updated to document `css` alongside `sectionStyles`.
+- `pnpm verify` passes. New tests: `parseDocCss` cases in `frontmatter.test.ts`, an export.test.ts section covering `css` + `sectionStyles` together (unscoped doc-wide CSS before scoped section CSS) and an unreadable-`css`-path case.
+- **Manual check still needed:** same caveat — open a note with just a `css:` frontmatter key (no `sectionStyles`) and confirm it styles the whole note live and in export.
+
 ## Blocked
 (none)
