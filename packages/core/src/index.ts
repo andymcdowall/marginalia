@@ -20,6 +20,7 @@ export * from "./export/scopeCss.js";
 export * from "./export/sectionCss.js";
 export * from "./export/toHtml.js";
 export * from "./export/redlineHtml.js";
+export * from "./export/renderMarkdownFragment.js";
 export * from "./document/splitFile.js";
 export * from "./document/joinFile.js";
 export * from "./document/frontmatter.js";

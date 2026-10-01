@@ -4,12 +4,13 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
 import { livePreview } from "../src/editor/livePreview.js";
+import { listRenderField } from "../src/editor/listRenderField.js";
 
 function makeView(doc: string, cursor: number): EditorView {
   const state = EditorState.create({
     doc,
     selection: { anchor: cursor, head: cursor },
-    extensions: [markdown(), livePreview],
+    extensions: [markdown(), livePreview, listRenderField],
   });
   return new EditorView({ state, parent: document.body });
 }
@@ -106,6 +107,51 @@ describe("livePreview: markup hidden on inactive lines, shown on active lines", 
     const doc = "![alt](pic.png)\n\nOther";
     const view = makeView(doc, doc.length);
     expect(view.dom.querySelector("img.cm-image")).not.toBeNull();
+    view.destroy();
+  });
+});
+
+describe("livePreview: top-level lists render as a real <ol>/<ul> while inactive", () => {
+  it("renders an inactive ordered list as a real <ol><li>", () => {
+    const doc = "1. one\n2. two\n\nOther paragraph text.";
+    const view = makeView(doc, doc.length);
+    const rendered = view.dom.querySelector(".cm-rendered-list");
+    expect(rendered).not.toBeNull();
+    expect(rendered!.querySelector("ol")).not.toBeNull();
+    expect(rendered!.textContent).toContain("one");
+    expect(rendered!.textContent).toContain("two");
+    view.destroy();
+  });
+
+  it("falls back to raw source while the cursor is inside the list", () => {
+    const doc = "1. one\n2. two\n\nOther paragraph text.";
+    const view = makeView(doc, 0);
+    expect(view.dom.querySelector(".cm-rendered-list")).toBeNull();
+    expect(view.dom.textContent ?? "").toContain("1. one");
+    view.destroy();
+  });
+
+  it("renders an inactive unordered list as a real <ul><li>", () => {
+    const doc = "- one\n- two\n\nOther paragraph text.";
+    const view = makeView(doc, doc.length);
+    const rendered = view.dom.querySelector(".cm-rendered-list");
+    expect(rendered).not.toBeNull();
+    expect(rendered!.querySelector("ul")).not.toBeNull();
+    view.destroy();
+  });
+
+  it("never collapses a list nested inside a blockquote", () => {
+    const doc = "> 1. nested\n> 2. in quote\n\nOther paragraph text.";
+    const view = makeView(doc, doc.length);
+    expect(view.dom.querySelector(".cm-rendered-list")).toBeNull();
+    expect(view.dom.textContent ?? "").toContain("nested");
+    view.destroy();
+  });
+
+  it("never collapses a list containing a comment milestone", () => {
+    const doc = '1. <comment-start id="aaaaaa"/>one<comment-end id="aaaaaa"/>\n2. two\n\nOther text.';
+    const view = makeView(doc, doc.length);
+    expect(view.dom.querySelector(".cm-rendered-list")).toBeNull();
     view.destroy();
   });
 });

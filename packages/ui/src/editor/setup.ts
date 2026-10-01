@@ -10,6 +10,7 @@ import { milestonesField } from "./milestones.js";
 import { livePreview } from "./livePreview.js";
 import { frontmatterField } from "./frontmatter.js";
 import { sectionsField } from "./sectionStyles.js";
+import { listRenderField } from "./listRenderField.js";
 import { editorTheme } from "./theme.js";
 import { sourceModeField } from "./sourceMode.js";
 import { threadsField, activeThreadIdField, commentHighlights } from "./commentHighlights.js";
@@ -74,6 +75,7 @@ export function editorSetup(initialThreads: Thread[] = []): Extension[] {
     redlineField,
     redline,
     livePreview,
+    listRenderField,
     editorTheme,
   ];
 }

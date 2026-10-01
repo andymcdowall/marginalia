@@ -293,11 +293,12 @@ A `ViewPlugin` builds decorations from `syntaxTree(state)` over `view.visibleRan
 | `Image` | — | replace the whole node with an `<img class="cm-image">` widget (`src=resolveAssetUrl(resolved path)`, max-width 100%) |
 | `Blockquote` | line class `cm-quote` | hide `QuoteMark` |
 | `FencedCode` | line class `cm-code-block` on all lines; syntax highlighting via `@codemirror/language-data` | fence lines get class `cm-fence` (dimmed, still visible) |
-| `ListItem` | line class `cm-li` on every line it spans | — |
+| `ListItem` | line class `cm-li` on every line it spans | — (unless its list is collapsed into a widget; see `OrderedList`/`BulletList` below) |
 | `Paragraph` | line class `cm-paragraph` on every line it spans | — |
 | `HorizontalRule` | — | replace with an `<hr>` widget |
 | `TaskMarker` | — | replace with a checkbox widget; clicking it toggles `[ ]`/`[x]` |
 | `ListMark`, `Table` | styled, never hidden | — |
+| `OrderedList`, `BulletList` (top-level only — direct child of `Document`) | — | if also not actively being edited, not inside compare/redline mode, and not containing a comment milestone, replace the whole list (nested sub-lists, task checkboxes, and inline formatting included) with a real `<ol>`/`<ul>` block widget, rendered via the same remark/rehype pipeline export uses (`core/export/renderMarkdownFragment.ts` → `editor/listWidget.ts`). This is what lets `ol { list-style-type: upper-roman; }` (or `.md-ol`) work in the live editor, not just in exported PDFs — it's real HTML, not a `cm-*` class. A list that's nested in a `Blockquote`, is being actively edited, is open during compare mode, or contains a comment milestone is left as plain source (`cm-li` lines) instead; see `editor/listEligibility.ts`/DECISIONS.md for why each of those is excluded.
 
 - Frontmatter (`frontmatter.ts`): if the doc starts with `---\n`, lines through the next `---` line get class `cm-frontmatter` (monospace, dimmed). No parsing.
 - **Source mode** (toggle with Cmd+E or a toolbar button) disables `livePreview` and `milestones` hiding, so the raw body is shown.

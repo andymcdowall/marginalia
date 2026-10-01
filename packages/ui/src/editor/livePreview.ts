@@ -10,6 +10,8 @@ import {
 import { syntaxTree } from "@codemirror/language";
 import type { SyntaxNodeRef } from "@lezer/common";
 import { isSourceMode } from "./sourceMode.js";
+import { redlineField } from "./redline.js";
+import { isCollapsibleList } from "./listEligibility.js";
 
 // SPEC.md §7.2. Builds decorations from the syntax tree over the editor's visible ranges. Markup
 // is hidden only on lines with no cursor/selection touching them ("active" lines show raw source).
@@ -105,6 +107,11 @@ export function buildLivePreviewDecorations(view: EditorView): DecorationSet {
   const entries: Entry[] = [];
   const active = activeLineNumbers(view);
   const doc = view.state.doc;
+  // Compare mode (redline) marks insertions/deletions as inline decorations over raw doc
+  // offsets — the same risk as comment milestones (see MILESTONE_RE above) if those offsets
+  // fall inside a block-replaced list. Simplest safe rule: don't collapse any list while
+  // compare mode is on at all, rather than checking each list for an overlapping hunk.
+  const redlineOn = view.state.field(redlineField, false)?.on ?? false;
   const quoteLines = new Set<number>();
   const listItemLines = new Set<number>();
   const paragraphLines = new Set<number>();
@@ -130,6 +137,21 @@ export function buildLivePreviewDecorations(view: EditorView): DecorationSet {
               entries.push({ from: marker.from, to: end, decoration: Decoration.replace({}) });
             }
           }
+          return;
+        }
+
+        // A collapsible list (per `isCollapsibleList` — top-level, inactive, no redline, no
+        // comment milestone) is rendered as a real <ol>/<ul> by a SEPARATE StateField
+        // (listRenderField.ts), not here: CodeMirror doesn't allow a ViewPlugin (this one) to
+        // provide `block: true` decorations ("Block decorations may not be specified via
+        // plugins" — found the hard way building this, see DECISIONS.md). Skip descending into
+        // it so this plugin doesn't ALSO generate per-item `cm-li`/mark decorations for the same
+        // lines the other field is about to replace outright. A non-collapsible list (active,
+        // redline on, nested in a blockquote, or containing a milestone) falls through exactly
+        // as before — no case here, so its ListItem/Paragraph/Emphasis/... children get the
+        // normal per-item treatment via the switch below once the walk reaches them.
+        if (node.name === "OrderedList" || node.name === "BulletList") {
+          if (isCollapsibleList(node.node, doc, active, redlineOn)) return false;
           return;
         }
 
