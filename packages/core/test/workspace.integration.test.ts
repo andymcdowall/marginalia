@@ -54,20 +54,24 @@ describe("workspace: openWorkspace", () => {
 });
 
 describe("workspace: file tree", () => {
-  it("lists folders first, hides dotfiles, and filters to md/images", async () => {
+  it("lists folders first (hiding only .git) and shows every file, hidden or not", async () => {
     const dir = await tempDir();
     const platform = createNodePlatform(path.join(dir, "store.json"));
 
     await platform.fs.mkdir(path.join(dir, "zzz-folder"));
     await platform.fs.mkdir(path.join(dir, ".hidden-folder"));
+    await platform.fs.mkdir(path.join(dir, ".git"));
     await platform.fs.writeText(path.join(dir, "Apple.md"), "");
     await platform.fs.writeText(path.join(dir, "banana.md"), "");
     await platform.fs.writeText(path.join(dir, ".hidden.md"), "");
     await platform.fs.writeText(path.join(dir, "notes.txt"), "");
+    await platform.fs.writeText(path.join(dir, "style.css"), "");
     await platform.fs.writeBinary(path.join(dir, "image.png"), new Uint8Array([1, 2, 3]));
 
     const entries = await listTree(platform, dir);
-    expect(entries.map((e) => e.name)).toEqual(["zzz-folder", "Apple.md", "banana.md", "image.png"]);
+    const names = entries.map((e) => e.name);
+    expect(names).not.toContain(".git");
+    expect(names).toEqual([".hidden-folder", "zzz-folder", ".hidden.md", "Apple.md", "banana.md", "image.png", "notes.txt", "style.css"]);
   });
 
   it("createNote avoids name collisions and leaves the file uncommitted", async () => {

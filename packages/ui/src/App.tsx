@@ -5,6 +5,7 @@ import { usePlatform } from "./platformContext.js";
 import { DEFAULT_SETTINGS, useStore } from "./store.js";
 import { FileTree } from "./components/FileTree.js";
 import { EditorPane } from "./components/EditorPane.js";
+import { CssEditorPane } from "./components/CssEditorPane.js";
 import { StatusBar } from "./components/StatusBar.js";
 import { HistoryPanel } from "./components/HistoryPanel.js";
 import { CommentsPanel } from "./components/CommentsPanel.js";
@@ -56,6 +57,7 @@ export function App() {
   const redlineOn = useStore((s) => s.redlineOn);
   const openFile = useStore((s) => s.openFile);
   const deletedView = useStore((s) => s.deletedView);
+  const unreadableFile = useStore((s) => s.unreadableFile);
   const baseline = useStore((s) => s.baseline);
   const currentBranch = useStore((s) => s.currentBranch);
   const draftDirty = useStore((s) => s.draftDirty);
@@ -103,7 +105,7 @@ export function App() {
       if (id === "open-folder") void handleOpenFolderRef.current();
       else if (id === "save-idea") void saveIdea();
       else if (id === "toggle-compare") useStore.getState().setRedlineOn(!useStore.getState().redlineOn);
-      else if (id === "export-pdf" && useStore.getState().openFile) useStore.getState().setExportOpen(true);
+      else if (id === "export-pdf" && useStore.getState().openFile?.kind === "markdown") useStore.getState().setExportOpen(true);
     }
     window.addEventListener("marginalia:menu", handleMenu);
     return () => window.removeEventListener("marginalia:menu", handleMenu);
@@ -200,15 +202,19 @@ export function App() {
           <FileTree root={workspace.root} />
         </div>
         <div className="editor-area">
-          {redlineOn && (openFile || deletedView) && (
+          {redlineOn && (openFile || deletedView) && openFile?.kind !== "css" && (
             // Mounted even in redline layout: it also resolves the base text the inline marks use.
             <BasePane
               label={baseline.kind === "branch" ? baseline.name : currentBranch}
               hidden={compareLayout === "redline" && !deletedView}
             />
           )}
-          {deletedView ? (
+          {unreadableFile ? (
+            <div className="empty-state">File not readable in Marginalia</div>
+          ) : deletedView ? (
             <div className="compare-deleted">{`Deleted in ${currentBranch}${draftDirty ? " (unsaved changes)" : ""}`}</div>
+          ) : openFile?.kind === "css" ? (
+            <CssEditorPane />
           ) : (
             <EditorPane />
           )}

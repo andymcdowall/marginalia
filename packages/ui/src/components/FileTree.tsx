@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { listTree, splitFile, createNote, createFolder, renameEntry, removeEntry, moveEntry } from "@marginalia/core";
 import { usePlatform } from "../platformContext.js";
-import { useStore } from "../store.js";
+import { useStore, fileKindFor } from "../store.js";
 import { showPrompt } from "../prompt.js";
 import { refreshDraft } from "../ideaActions.js";
 
@@ -18,6 +18,7 @@ function Node({ dir, path, name, depth }: { dir: boolean; path: string; name: st
   const setTreeEntries = useStore((s) => s.setTreeEntries);
   const openFileAt = useStore((s) => s.openFileAt);
   const openFile = useStore((s) => s.openFile);
+  const setUnreadableFile = useStore((s) => s.setUnreadableFile);
   const [menuOpen, setMenuOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
@@ -37,9 +38,17 @@ function Node({ dir, path, name, depth }: { dir: boolean; path: string; name: st
       toggleDir(path);
       return;
     }
+    const kind = fileKindFor(path);
+    if (kind === "unreadable") {
+      setUnreadableFile(path);
+      return;
+    }
     const raw = await platform.fs.readText(path);
-    const parsed = splitFile(raw);
-    openFileAt(path, parsed.threads, raw);
+    if (kind === "markdown") {
+      openFileAt(path, splitFile(raw).threads, raw, "markdown");
+    } else {
+      openFileAt(path, [], raw, "css");
+    }
   }
 
   async function handleRename(): Promise<void> {

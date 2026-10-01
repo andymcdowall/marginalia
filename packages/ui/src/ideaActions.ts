@@ -9,7 +9,7 @@ import {
   type Platform,
   type SwitchMode,
 } from "@marginalia/core";
-import { useStore } from "./store.js";
+import { useStore, fileKindFor } from "./store.js";
 import { showPrompt } from "./prompt.js";
 import { showChoice } from "./choice.js";
 import { editorBridge } from "./editorBridge.js";
@@ -61,9 +61,14 @@ export async function saveIdea(): Promise<boolean> {
 
 async function reopen(platform: Platform, path: string | null): Promise<void> {
   if (!path || !(await platform.fs.exists(path))) return;
+  const kind = fileKindFor(path);
+  if (kind === "unreadable") {
+    store().setUnreadableFile(path);
+    return;
+  }
   const raw = await platform.fs.readText(path);
   store().workspace?.saveCommit.primeLastSaved(path, raw);
-  store().openFileAt(path, splitFile(raw).threads, raw);
+  store().openFileAt(path, kind === "markdown" ? splitFile(raw).threads : [], raw, kind);
 }
 
 // The right-hand dropdown: check out another idea. Unsaved changes can be carried over (stash →

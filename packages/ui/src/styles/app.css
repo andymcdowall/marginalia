@@ -70,6 +70,12 @@ body {
   height: 100%;
 }
 
+.css-editor-pane .cm-content {
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 13px;
+  max-width: none;
+}
+
 .file-tree {
   font-size: 13px;
   padding: 8px 0;

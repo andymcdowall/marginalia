@@ -53,23 +53,17 @@ export async function getLastWorkspace(platform: Platform): Promise<string | und
   return platform.store.get<string>("lastWorkspace");
 }
 
-const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg"]);
+// `.git` is the one thing never shown: it's git's own plumbing (huge, and exposing it would let
+// tree actions — rename/delete/drag-move — touch it, risking the repo itself). Everything else
+// is shown, including other dotfiles/dot-folders and every file extension, not just .md/images —
+// opening a file the editor can't display falls to `FileTree`'s "File not readable in Marginalia"
+// message rather than being hidden from the tree.
+const ALWAYS_HIDDEN_DIRS = new Set([".git"]);
 
-function extensionOf(name: string): string {
-  const dot = name.lastIndexOf(".");
-  return dot === -1 ? "" : name.slice(dot + 1).toLowerCase();
-}
-
-// Lazy, single-directory listing: folders, .md files, and images; dotfiles/dot-folders hidden;
-// folders first, then case-insensitive by name (SPEC.md §6).
+// Lazy, single-directory listing: folders first, then case-insensitive by name (SPEC.md §6).
 export async function listTree(platform: Platform, dir: string): Promise<DirEntry[]> {
   const entries = await platform.fs.list(dir);
-  const visible = entries.filter((e) => {
-    if (e.name.startsWith(".")) return false;
-    if (e.kind === "dir") return true;
-    const ext = extensionOf(e.name);
-    return ext === "md" || IMAGE_EXTENSIONS.has(ext);
-  });
+  const visible = entries.filter((e) => !(e.kind === "dir" && ALWAYS_HIDDEN_DIRS.has(e.name)));
   visible.sort((a, b) => {
     if (a.kind !== b.kind) return a.kind === "dir" ? -1 : 1;
     return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });

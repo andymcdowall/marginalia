@@ -48,29 +48,36 @@ export function Toolbar() {
   }
 
   if (!openFile) return null;
+  const isMarkdown = openFile.kind === "markdown";
 
   return (
     <div className="toolbar">
       <div className="toolbar-filename">{fileName}</div>
       <div className="toolbar-actions">
-        <button
-          type="button"
-          onClick={() => setCompareLayout(compareLayout === "side-by-side" ? "redline" : "side-by-side")}
-          title="Switch how comparisons are shown"
-        >
-          {compareLayout === "side-by-side" ? "Side by side" : "Redline"}
-        </button>
-        <button type="button" onClick={handleToggleSourceMode}>
-          {sourceMode ? "Source" : "Live"}
-        </button>
-        <button type="button" onClick={handleComment} title="Cmd+Shift+M">
-          Comment
-        </button>
+        {isMarkdown && (
+          <button
+            type="button"
+            onClick={() => setCompareLayout(compareLayout === "side-by-side" ? "redline" : "side-by-side")}
+            title="Switch how comparisons are shown"
+          >
+            {compareLayout === "side-by-side" ? "Side by side" : "Redline"}
+          </button>
+        )}
+        {isMarkdown && (
+          <button type="button" onClick={handleToggleSourceMode}>
+            {sourceMode ? "Source" : "Live"}
+          </button>
+        )}
+        {isMarkdown && (
+          <button type="button" onClick={handleComment} title="Cmd+Shift+M">
+            Comment
+          </button>
+        )}
         <button type="button" onClick={() => void handleSnapshot()}>
           Snapshot
         </button>
       </div>
-      {exportOpen && <ExportDialog onClose={() => setExportOpen(false)} />}
+      {isMarkdown && exportOpen && <ExportDialog onClose={() => setExportOpen(false)} />}
     </div>
   );
 }

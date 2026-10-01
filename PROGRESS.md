@@ -144,5 +144,13 @@ Complete (Phases 0–7)
 - `pnpm verify` passes. New tests: `parseDocCss` cases in `frontmatter.test.ts`, an export.test.ts section covering `css` + `sectionStyles` together (unscoped doc-wide CSS before scoped section CSS) and an unreadable-`css`-path case.
 - **Manual check still needed:** same caveat — open a note with just a `css:` frontmatter key (no `sectionStyles`) and confirm it styles the whole note live and in export.
 
+### Post-Phase 7: Editable CSS files, an unfiltered file tree, and an "unreadable file" state (requested by the user)
+- Core: `workspace.ts`'s `listTree` no longer filters to `.md`/images or hides dotfiles/dot-folders — it now shows every file and folder, hiding only `.git` (git's own plumbing; exposing it would let tree actions like rename/delete/drag-move touch the repo itself).
+- UI: `store.ts` adds `OpenFile.kind` (`"markdown" | "css"`) and `fileKindFor(path)` (`.md` -> markdown, `.css` -> css, anything else -> `"unreadable"`), plus an `unreadableFile` store field (same pattern as the existing `deletedView`). `FileTree.tsx` and `ideaActions.ts`'s `reopen` (restoring the open file after a branch switch) both dispatch on `fileKindFor` instead of assuming markdown. New `CssEditorPane.tsx`: a plain-text CodeMirror editor for `.css` files (no comments/threads/milestones/live-preview/redline — markdown-only concepts), with the same write-only autosave flow as `EditorPane`. `App.tsx` routes the editor area by `openFile.kind`/`unreadableFile` (css -> `CssEditorPane`, unreadable -> "File not readable in Marginalia", otherwise `EditorPane`) and hides `BasePane`/export for non-markdown files; `Toolbar.tsx` hides the Live/Source, Comment, and compare-layout buttons for `.css` files (Snapshot stays, since it's idea-wide).
+- SPEC.md §6 updated.
+- `pnpm verify` passes (130 tests). New tests: a rewritten `listTree` test (shows hidden files/folders and non-md/image extensions, still hides `.git`), `packages/ui/test/store.test.ts` (`fileKindFor`).
+- **Known gap:** if an *unreadable* file (not a `deletedView`/`openFile`) is open when the user switches ideas, `reopen` doesn't restore that state — `openPath` is only captured from `openFile`/`deletedView`. Minor; logged rather than fixed, since it only affects what's showing right after a branch switch, not any data.
+- **Manual check still needed:** same caveat as everything else in this file — open a `.css` file from the tree, edit it, confirm autosave/Save-idea commits it; open a hidden dotfile and a non-css/md file and confirm the "File not readable in Marginalia" message; confirm `.git` still doesn't show up in the tree.
+
 ## Blocked
 (none)

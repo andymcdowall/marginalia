@@ -1,8 +1,24 @@
 import { create } from "zustand";
 import type { Baseline, DirEntry, GitClient, MergeResult, SaveCommit, Thread } from "@marginalia/core";
 
+// "markdown" gets the full live-preview editor (EditorPane); "css" gets a plain-text editor
+// (CssEditorPane) with no comments/threads/milestones/redline — those are markdown-only concepts.
+export type OpenFileKind = "markdown" | "css";
+
+// What a given path should open as — anything that isn't .md/.css shows "File not readable in
+// Marginalia" instead (App.tsx), rather than being hidden from the tree in the first place
+// (listTree now shows every file, per SPEC.md §6).
+export function fileKindFor(path: string): OpenFileKind | "unreadable" {
+  const dot = path.lastIndexOf(".");
+  const ext = dot === -1 ? "" : path.slice(dot + 1).toLowerCase();
+  if (ext === "md") return "markdown";
+  if (ext === "css") return "css";
+  return "unreadable";
+}
+
 export type OpenFile = {
   path: string;
+  kind: OpenFileKind;
   threads: Thread[];
   dirty: boolean;
   lastSaved: string; // last content written to disk, for external-change comparison
@@ -79,6 +95,8 @@ type Store = {
   draftVersion: number;
   // Absolute path of a file that exists on the left but was deleted on the right (compare view).
   deletedView: string | null;
+  // Absolute path of a file the tree shows but the editor can't open (anything but .md/.css).
+  unreadableFile: string | null;
 
   setWorkspace: (ws: WorkspaceState | null) => void;
   setMerge: (source: string | null, result: MergeResult | null) => void;
@@ -94,7 +112,7 @@ type Store = {
   setBranchMenuOpen: (open: boolean) => void;
   setTreeEntries: (dir: string, entries: DirEntry[]) => void;
   toggleDir: (dir: string) => void;
-  openFileAt: (path: string, threads: Thread[], content: string) => void;
+  openFileAt: (path: string, threads: Thread[], content: string, kind?: OpenFileKind) => void;
   closeFile: () => void;
   markDirty: (dirty: boolean) => void;
   markSaved: (content: string) => void;
@@ -119,6 +137,7 @@ type Store = {
   setDraftDirty: (dirty: boolean) => void;
   bumpDraftVersion: () => void;
   setDeletedView: (path: string | null) => void;
+  setUnreadableFile: (path: string | null) => void;
 };
 
 export const useStore = create<Store>((set) => ({
@@ -154,6 +173,7 @@ export const useStore = create<Store>((set) => ({
   draftDirty: false,
   draftVersion: 0,
   deletedView: null,
+  unreadableFile: null,
 
   setWorkspace: (ws) => set({ workspace: ws, tree: {}, expandedDirs: new Set(), openFile: null }),
   setMerge: (source, result) => set({ mergeSource: source, mergeResult: result }),
@@ -174,17 +194,19 @@ export const useStore = create<Store>((set) => ({
       else next.add(dir);
       return { expandedDirs: next };
     }),
-  openFileAt: (path, threads, content) =>
+  openFileAt: (path, threads, content, kind = "markdown") =>
     set({
-      openFile: { path, threads, dirty: false, lastSaved: content, docText: content },
+      openFile: { path, kind, threads, dirty: false, lastSaved: content, docText: content },
       activeThreadId: null,
       draftThreadId: null,
       deletedView: null,
+      unreadableFile: null,
       // The compare base (left dropdown) deliberately survives opening another file.
       baselineCleanText: "",
       activeHunkIndex: -1,
     }),
-  closeFile: () => set({ openFile: null, deletedView: null, activeThreadId: null, draftThreadId: null }),
+  closeFile: () =>
+    set({ openFile: null, deletedView: null, unreadableFile: null, activeThreadId: null, draftThreadId: null }),
   markDirty: (dirty) => set((s) => (s.openFile ? { openFile: { ...s.openFile, dirty } } : {})),
   markSaved: (content) =>
     set((s) => (s.openFile ? { openFile: { ...s.openFile, dirty: false, lastSaved: content } } : {})),
@@ -216,5 +238,7 @@ export const useStore = create<Store>((set) => ({
     }),
   setDraftDirty: (dirty) => set({ draftDirty: dirty }),
   bumpDraftVersion: () => set((s) => ({ draftVersion: s.draftVersion + 1 })),
-  setDeletedView: (path) => set(path ? { deletedView: path, openFile: null } : { deletedView: null }),
+  setDeletedView: (path) => set(path ? { deletedView: path, openFile: null, unreadableFile: null } : { deletedView: null }),
+  setUnreadableFile: (path) =>
+    set(path ? { unreadableFile: path, openFile: null, deletedView: null } : { unreadableFile: null }),
 }));
