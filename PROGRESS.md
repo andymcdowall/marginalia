@@ -168,5 +168,13 @@ Complete (Phases 0–7)
 - `pnpm verify` passes. New tests: `packages/ui/test/cssTagAlias.test.ts` (aliasing cases, including "leaves complex selectors alone" and "leaves at-rules alone"); `scopeCss.test.ts` re-run unchanged to confirm the refactor didn't change its behavior.
 - **Manual check still needed:** open a note with `css: note.css` containing plain tags only (`h1 { color: red; } li { font-style: italic; }`), confirm both rules visibly apply in the live editor (not just the exported PDF).
 
+### Post-Phase 7: Live-reload CSS within a second or two of saving (follow-up — the user explicitly asked for this timing)
+- UI: `useSectionCss.ts` rewritten to poll the referenced stylesheet(s) from disk every 1 second (`POLL_MS`) instead of only re-reading when the open note's own path or frontmatter text changes. The polling `setInterval` is set up once per file open (keyed on `[platform, path]`, not `docText`, which changes on every keystroke) and reads the note's current text through a ref updated every render, so it survives typing instead of being torn down and rebuilt on every character. A `setCss` (and the `<style>` tag re-render it causes) only fires when the combined CSS string actually changed since the last tick.
+- The composed read-and-combine logic is now a standalone, exported, unit-tested function (`buildCombinedCss`), separate from the React effect/polling wiring.
+- Considered building on `platform.fs.watch` instead of polling — it's on the `Platform` interface and SPEC.md §6 describes using it for external-file-change sync, but nothing in the UI actually calls `fs.watch` anywhere (that sync was apparently never wired up despite being spec'd). Polling was the much smaller lift for "a second or two."
+- SPEC.md §11.4 updated with a "Live reload" bullet.
+- `pnpm verify` passes. New test: `packages/ui/test/useSectionCss.test.ts` (`buildCombinedCss` composition — doc-wide-before-section ordering, missing-file skip, empty case). The polling/timer behavior itself isn't automated (no React testing utility in this project — flagged, not silently skipped).
+- **Manual check still needed:** with a note open that references `part-one.css`, edit and save `part-one.css` in its own tab, and confirm the note's live styling updates within a second or two without switching away and back.
+
 ## Blocked
 (none)
