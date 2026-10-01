@@ -6,7 +6,7 @@ import { editorSetup } from "../editor/setup.js";
 import { setThreads, setActiveThreadId } from "../editor/commentHighlights.js";
 import { insertCommentTags } from "../editor/comments.js";
 import { clipboardHandlers } from "../editor/clipboard.js";
-import { setRedlineOn, setBaselineClean } from "../editor/redline.js";
+import { setRedlineOn, setBaselineClean, setInlineDeletions } from "../editor/redline.js";
 import { setSourceMode } from "../editor/sourceMode.js";
 import { usePlatform } from "../platformContext.js";
 import { useStore } from "../store.js";
@@ -130,7 +130,11 @@ export function EditorPane() {
 
       if (useStore.getState().redlineOn) {
         viewRef.current.dispatch({
-          effects: [setRedlineOn.of(true), setBaselineClean.of(useStore.getState().baselineCleanText)],
+          effects: [
+            setRedlineOn.of(true),
+            setInlineDeletions.of(useStore.getState().compareLayout === "redline"),
+            setBaselineClean.of(useStore.getState().baselineCleanText),
+          ],
         });
       }
     })();
@@ -149,6 +153,9 @@ export function EditorPane() {
       }
       if (state.redlineOn !== prevState.redlineOn) {
         effects.push(setRedlineOn.of(state.redlineOn));
+      }
+      if (state.compareLayout !== prevState.compareLayout) {
+        effects.push(setInlineDeletions.of(state.compareLayout === "redline"));
       }
       // The base text is resolved by BasePane (compare view); just mirror it into the editor.
       if (state.baselineCleanText !== prevState.baselineCleanText) {

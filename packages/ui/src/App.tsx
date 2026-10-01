@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { GitClient, SaveCommit, currentBranch as gitCurrentBranch, getLastWorkspace, openWorkspace, resumeMerge } from "@marginalia/core";
 import type { Platform } from "@marginalia/core";
 import { usePlatform } from "./platformContext.js";
@@ -17,7 +17,7 @@ import { SettingsDialog } from "./components/SettingsDialog.js";
 import { PromptDialogHost } from "./components/PromptDialogHost.js";
 import { ChoiceDialogHost } from "./components/ChoiceDialogHost.js";
 import { BasePane } from "./components/BasePane.js";
-import { initCompare, saveIdea } from "./ideaActions.js";
+import { flushEverything, initCompare, saveIdea } from "./ideaActions.js";
 
 async function openAndPrepare(platform: Platform, root: string) {
   const info = await openWorkspace(platform, root);
@@ -59,6 +59,9 @@ export function App() {
   const baseline = useStore((s) => s.baseline);
   const currentBranch = useStore((s) => s.currentBranch);
   const draftDirty = useStore((s) => s.draftDirty);
+  const compareLayout = useStore((s) => s.compareLayout);
+
+  const handleOpenFolderRef = useRef<() => Promise<void>>(async () => {});
 
   async function checkForInProgressMerge(platform: Platform, ws: { git: GitClient }, branch: string): Promise<void> {
     if (!(await ws.git.isMergeInProgress())) return;
@@ -88,14 +91,22 @@ export function App() {
         e.preventDefault();
         setShortcutsOpen(true);
       }
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "s") {
-        e.preventDefault();
-        void saveIdea();
-      }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [setShortcutsOpen]);
+
+  // Native File menu (apps/desktop forwards clicks as a DOM event; Cmd+S/O/Shift+E are its accelerators).
+  useEffect(() => {
+    function handleMenu(e: Event): void {
+      const id = (e as CustomEvent<string>).detail;
+      if (id === "open-folder") void handleOpenFolderRef.current();
+      else if (id === "save-idea") void saveIdea();
+      else if (id === "export-pdf" && useStore.getState().openFile) useStore.getState().setExportOpen(true);
+    }
+    window.addEventListener("marginalia:menu", handleMenu);
+    return () => window.removeEventListener("marginalia:menu", handleMenu);
+  }, []);
 
   useEffect(() => {
     void (async () => {
@@ -118,6 +129,8 @@ export function App() {
   }, []);
 
   const handleOpenFolder = useCallback(async () => {
+    // Leaving a vault keeps its draft on disk; just make sure pending edits are written first.
+    await flushEverything();
     const root = await platform.dialogs.openFolder();
     if (!root) return;
     try {
@@ -131,6 +144,8 @@ export function App() {
       else throw e;
     }
   }, [platform, setWorkspace, setCurrentBranch]);
+
+  handleOpenFolderRef.current = handleOpenFolder;
 
   if (gitMissing) {
     return (
@@ -180,7 +195,11 @@ export function App() {
         </div>
         <div className="editor-area">
           {redlineOn && (openFile || deletedView) && (
-            <BasePane label={baseline.kind === "branch" ? baseline.name : currentBranch} />
+            // Mounted even in redline layout: it also resolves the base text the inline marks use.
+            <BasePane
+              label={baseline.kind === "branch" ? baseline.name : currentBranch}
+              hidden={compareLayout === "redline" && !deletedView}
+            />
           )}
           {deletedView ? (
             <div className="compare-deleted">{`Deleted in ${currentBranch}${draftDirty ? " (unsaved changes)" : ""}`}</div>

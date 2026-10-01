@@ -57,6 +57,8 @@ type Store = {
   // "Compare view" on/off. (Named `redlineOn` from when this was an inline redline; it now drives
   // the side-by-side base | changes view.)
   redlineOn: boolean;
+  // How the compare view is drawn: base pane next to the editor, or one pane with deletions inline.
+  compareLayout: "side-by-side" | "redline";
   // The LEFT dropdown: always `{ kind: "branch", name }` in the UI, i.e. an idea's latest commit.
   baseline: Baseline;
   baselineLabel: string;
@@ -86,6 +88,8 @@ type Store = {
   addToast: (message: string, details?: string) => void;
   dismissToast: (id: number) => void;
   setShortcutsOpen: (open: boolean) => void;
+  exportOpen: boolean;
+  setExportOpen: (open: boolean) => void;
   setCurrentBranch: (name: string) => void;
   setBranchMenuOpen: (open: boolean) => void;
   setTreeEntries: (dir: string, entries: DirEntry[]) => void;
@@ -101,6 +105,7 @@ type Store = {
   setCommentFilter: (filter: CommentFilter) => void;
   setSidebarTab: (tab: "comments" | "history" | "changes") => void;
   setRedlineOn: (on: boolean) => void;
+  setCompareLayout: (layout: "side-by-side" | "redline") => void;
   setBaseline: (baseline: Baseline, label: string) => void;
   setBaselineCleanText: (text: string) => void;
   setActiveHunkIndex: (i: number) => void;
@@ -131,6 +136,7 @@ export const useStore = create<Store>((set) => ({
   commentFilter: "open",
   sidebarTab: "comments",
   redlineOn: false,
+  compareLayout: "side-by-side",
   baseline: { kind: "branch", name: "main" },
   baselineLabel: "main",
   baselineCleanText: "",
@@ -142,6 +148,7 @@ export const useStore = create<Store>((set) => ({
   gitMissing: false,
   toasts: [],
   shortcutsOpen: false,
+  exportOpen: false,
   promptRequest: null,
   choiceRequest: null,
   draftDirty: false,
@@ -156,6 +163,7 @@ export const useStore = create<Store>((set) => ({
   addToast: (message, details) => set((s) => ({ toasts: [...s.toasts, { id: nextToastId++, message, details }] })),
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   setShortcutsOpen: (open) => set({ shortcutsOpen: open }),
+  setExportOpen: (open) => set({ exportOpen: open }),
   setCurrentBranch: (name) => set({ currentBranch: name }),
   setBranchMenuOpen: (open) => set({ branchMenuOpen: open }),
   setTreeEntries: (dir, entries) => set((s) => ({ tree: { ...s.tree, [dir]: entries } })),
@@ -187,6 +195,7 @@ export const useStore = create<Store>((set) => ({
   setCommentFilter: (filter) => set({ commentFilter: filter }),
   setSidebarTab: (tab) => set({ sidebarTab: tab }),
   setRedlineOn: (on) => set({ redlineOn: on }),
+  setCompareLayout: (layout) => set({ compareLayout: layout }),
   setBaseline: (baseline, label) => set({ baseline, baselineLabel: label }),
   setBaselineCleanText: (text) => set({ baselineCleanText: text }),
   setActiveHunkIndex: (i) => set({ activeHunkIndex: i }),

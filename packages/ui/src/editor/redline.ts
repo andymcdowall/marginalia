@@ -1,34 +1,52 @@
 import { RangeSetBuilder, StateEffect, StateField } from "@codemirror/state";
-import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
+import { Decoration, type DecorationSet, EditorView, ViewPlugin, WidgetType, type ViewUpdate } from "@codemirror/view";
 import { cleanText, wordDiff, type Hunk } from "@marginalia/core";
 
-// Compare view, right (editable) side: only insertions are marked here. Removed text is shown
-// struck through in the base pane on the left (basePane.ts), so there is no inline deletion widget.
+// Compare view, right (editable) side: insertions are marked here. In side-by-side layout removed
+// text is struck through in the base pane on the left (basePane.ts); in redline layout it is shown
+// inline as a struck-through widget instead.
 // SPEC.md §10.3: recomputed 150ms after doc changes, or immediately on toggle or baseline change.
 // This MUST actually be debounced, not just reactive — measured: a synchronous per-keystroke
 // recompute on a 10,000-word doc takes ~1s (Spike B's benchmark caught this). See DECISIONS.md.
 
 export const setRedlineOn = StateEffect.define<boolean>();
 export const setBaselineClean = StateEffect.define<string>();
+export const setInlineDeletions = StateEffect.define<boolean>();
 const setDecorations = StateEffect.define<DecorationSet>();
 
-type RedlineValue = { on: boolean; baselineClean: string; decorations: DecorationSet };
+type RedlineValue = { on: boolean; inline: boolean; baselineClean: string; decorations: DecorationSet };
 
 export const redlineField = StateField.define<RedlineValue>({
-  create: () => ({ on: false, baselineClean: "", decorations: Decoration.none }),
+  create: () => ({ on: false, inline: false, baselineClean: "", decorations: Decoration.none }),
   update(value, tr) {
-    let { on, baselineClean, decorations } = value;
+    let { on, inline, baselineClean, decorations } = value;
     decorations = decorations.map(tr.changes);
     for (const e of tr.effects) {
       if (e.is(setRedlineOn)) on = e.value;
       if (e.is(setBaselineClean)) baselineClean = e.value;
+      if (e.is(setInlineDeletions)) inline = e.value;
       if (e.is(setDecorations)) decorations = e.value;
     }
     if (!on) decorations = Decoration.none;
-    return { on, baselineClean, decorations };
+    return { on, inline, baselineClean, decorations };
   },
   provide: (field) => EditorView.decorations.from(field, (v) => v.decorations),
 });
+
+class DeletedText extends WidgetType {
+  constructor(readonly text: string) {
+    super();
+  }
+  eq(other: DeletedText): boolean {
+    return other.text === this.text;
+  }
+  toDOM(): HTMLElement {
+    const span = document.createElement("span");
+    span.className = "cm-del";
+    span.textContent = this.text;
+    return span;
+  }
+}
 
 type Entry = { from: number; to: number; decoration: Decoration };
 
@@ -39,12 +57,16 @@ export function computeRedlineHunks(doc: string, baselineClean: string): { hunks
   return { hunks: wordDiff(baselineClean, clean.text), toDoc: clean.toDoc };
 }
 
-function buildDecorations(doc: string, baselineClean: string): DecorationSet {
+function buildDecorations(doc: string, baselineClean: string, inline: boolean): DecorationSet {
   const { hunks, toDoc } = computeRedlineHunks(doc, baselineClean);
   const entries: Entry[] = [];
   for (const h of hunks) {
     if (h.inserted) {
       entries.push({ from: toDoc[h.curFrom]!, to: toDoc[h.curTo]!, decoration: Decoration.mark({ class: "cm-ins" }) });
+    }
+    if (inline && h.deleted) {
+      const at = toDoc[h.curFrom]!;
+      entries.push({ from: at, to: at, decoration: Decoration.widget({ widget: new DeletedText(h.deleted), side: -1 }) });
     }
   }
   entries.sort((a, b) => a.from - b.from || a.to - b.to);
@@ -70,7 +92,7 @@ export const redline = ViewPlugin.fromClass(
         return;
       }
       const toggledOnOrBaselineChanged = update.transactions.some((tr) =>
-        tr.effects.some((e) => e.is(setRedlineOn) || e.is(setBaselineClean))
+        tr.effects.some((e) => e.is(setRedlineOn) || e.is(setBaselineClean) || e.is(setInlineDeletions))
       );
       if (toggledOnOrBaselineChanged) {
         this.schedule(update.view, 0);
@@ -83,9 +105,9 @@ export const redline = ViewPlugin.fromClass(
       this.clear();
       this.timer = setTimeout(() => {
         this.timer = null;
-        const { on, baselineClean } = view.state.field(redlineField);
+        const { on, inline, baselineClean } = view.state.field(redlineField);
         if (!on) return;
-        const decorations = buildDecorations(view.state.doc.toString(), baselineClean);
+        const decorations = buildDecorations(view.state.doc.toString(), baselineClean, inline);
         view.dispatch({ effects: setDecorations.of(decorations) });
       }, delay);
     }

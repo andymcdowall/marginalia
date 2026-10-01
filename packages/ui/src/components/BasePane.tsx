@@ -9,7 +9,7 @@ import { activeEditorView } from "./EditorPane.js";
 
 // Left half of the compare view. Shows the base idea's version of the open file (or of a file
 // deleted on the right), read-only, with removed text struck through; scrolls with the editor.
-export function BasePane({ label }: { label: string }) {
+export function BasePane({ label, hidden }: { label: string; hidden: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const workspace = useStore((s) => s.workspace);
@@ -84,7 +84,7 @@ export function BasePane({ label }: { label: string }) {
   }, [path, hasOpenFile]);
 
   return (
-    <div className="compare-base">
+    <div className="compare-base" style={hidden ? { display: "none" } : undefined}>
       <div className="compare-pane-label">{label}</div>
       <div className="compare-pane-body" ref={containerRef} />
     </div>

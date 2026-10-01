@@ -1,5 +1,6 @@
 import { useStore } from "../store.js";
 import { BranchMenu } from "./BranchMenu.js";
+import { CompareBar } from "./CompareBar.js";
 
 function wordCount(text: string): number {
   const trimmed = text.trim();
@@ -7,7 +8,6 @@ function wordCount(text: string): number {
 }
 
 export function StatusBar() {
-  const currentBranch = useStore((s) => s.currentBranch);
   const branchMenuOpen = useStore((s) => s.branchMenuOpen);
   const setBranchMenuOpen = useStore((s) => s.setBranchMenuOpen);
   const openFile = useStore((s) => s.openFile);
@@ -21,9 +21,9 @@ export function StatusBar() {
     <div className="status-bar">
       <div className="status-bar-branch">
         <button type="button" onClick={() => setBranchMenuOpen(!branchMenuOpen)}>
-          {"⌥ "}
-          {currentBranch}
+          {"⌥"}
         </button>
+        <CompareBar />
         {branchMenuOpen && <BranchMenu onClose={() => setBranchMenuOpen(false)} />}
         {mergeResult && mergeResult.kind === "conflicts" && <span className="status-bar-merge-badge">Merging…</span>}
       </div>

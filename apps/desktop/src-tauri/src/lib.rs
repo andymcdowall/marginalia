@@ -6,6 +6,7 @@ mod store;
 mod watch;
 
 use state::AppState;
+use tauri::menu::{Menu, MenuItem, MenuItemKind, PredefinedMenuItem};
 use tauri::{Emitter, Manager, WindowEvent};
 
 #[tauri::command]
@@ -34,7 +35,26 @@ pub fn run() {
         .setup(|app| {
             let state = app.state::<AppState>();
             *state.git_bin.lock().unwrap() = git::resolve_git_binary();
+
+            // Add our items to the default File menu. The webview handles them (see main.tsx).
+            let handle = app.handle();
+            let menu = Menu::default(handle)?;
+            let open = MenuItem::with_id(handle, "open-folder", "Open Folder…", true, Some("CmdOrCtrl+O"))?;
+            let save = MenuItem::with_id(handle, "save-idea", "Save Idea", true, Some("CmdOrCtrl+S"))?;
+            let export = MenuItem::with_id(handle, "export-pdf", "Export PDF…", true, Some("CmdOrCtrl+Shift+E"))?;
+            let sep = PredefinedMenuItem::separator(handle)?;
+            for item in menu.items()? {
+                if let MenuItemKind::Submenu(sub) = item {
+                    if sub.text()? == "File" {
+                        sub.insert_items(&[&open, &save, &export, &sep], 0)?;
+                    }
+                }
+            }
+            app.set_menu(menu)?;
             Ok(())
+        })
+        .on_menu_event(|app, event| {
+            let _ = app.emit("menu", event.id().as_ref());
         })
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {

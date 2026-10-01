@@ -1,5 +1,7 @@
 const SHORTCUTS: [string, string][] = [
   ["Cmd+S", "Save idea (commit your changes)"],
+  ["Cmd+O", "Open folder"],
+  ["Cmd+Shift+E", "Export PDF"],
   ["Cmd+N", "New note"],
   ["Cmd+E", "Toggle Live/Source mode"],
   ["Cmd+Shift+M", "Comment on selection"],

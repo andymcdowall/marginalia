@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { createSnapshot } from "@marginalia/core";
 import { useStore } from "../store.js";
 import { ExportDialog } from "./ExportDialog.js";
@@ -8,7 +7,7 @@ import { showPrompt } from "../prompt.js";
 import { saveIdea } from "../ideaActions.js";
 
 // SPEC.md §12. File name, Live/Source toggle, Comment, Redline toggle + baseline label, Snapshot,
-// Export.
+// (Save idea, Open folder and Export live in the File menu.)
 export function Toolbar() {
   const openFile = useStore((s) => s.openFile);
   const sourceMode = useStore((s) => s.sourceMode);
@@ -16,10 +15,13 @@ export function Toolbar() {
   const redlineOn = useStore((s) => s.redlineOn);
   const setRedlineOn = useStore((s) => s.setRedlineOn);
   const baseline = useStore((s) => s.baseline);
+  const compareLayout = useStore((s) => s.compareLayout);
+  const setCompareLayout = useStore((s) => s.setCompareLayout);
   const draftDirty = useStore((s) => s.draftDirty);
   const workspace = useStore((s) => s.workspace);
   const currentBranch = useStore((s) => s.currentBranch);
-  const [exportOpen, setExportOpen] = useState(false);
+  const exportOpen = useStore((s) => s.exportOpen);
+  const setExportOpen = useStore((s) => s.setExportOpen);
 
   const fileName = openFile ? openFile.path.slice(openFile.path.lastIndexOf("/") + 1) : "";
 
@@ -54,6 +56,13 @@ export function Toolbar() {
     <div className="toolbar">
       <div className="toolbar-filename">{fileName}</div>
       <div className="toolbar-actions">
+        <button
+          type="button"
+          onClick={() => setCompareLayout(compareLayout === "side-by-side" ? "redline" : "side-by-side")}
+          title="Switch how comparisons are shown"
+        >
+          {compareLayout === "side-by-side" ? "Side by side" : "Redline"}
+        </button>
         <button type="button" onClick={handleToggleSourceMode}>
           {sourceMode ? "Source" : "Live"}
         </button>
@@ -63,14 +72,8 @@ export function Toolbar() {
         <button type="button" className={redlineOn ? "active" : ""} onClick={() => setRedlineOn(!redlineOn)} title="Cmd+Shift+R">
           {`Compare with ${baseline.kind === "branch" ? baseline.name : "origin"}`}
         </button>
-        <button type="button" disabled={!draftDirty} onClick={() => void saveIdea()} title="Cmd+S">
-          Save idea
-        </button>
         <button type="button" onClick={() => void handleSnapshot()}>
           Snapshot
-        </button>
-        <button type="button" onClick={() => setExportOpen(true)}>
-          Export
         </button>
       </div>
       {exportOpen && <ExportDialog onClose={() => setExportOpen(false)} />}
