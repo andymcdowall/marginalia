@@ -95,4 +95,17 @@ describe("livePreview: markup hidden on inactive lines, shown on active lines", 
     expect(view.dom.querySelectorAll(".cm-li").length).toBe(2);
     view.destroy();
   });
+
+  it("applies the cm-paragraph line class to a plain paragraph", () => {
+    const view = makeView("Just a paragraph.", 0);
+    expect(view.dom.querySelector(".cm-paragraph")).not.toBeNull();
+    view.destroy();
+  });
+
+  it("applies the cm-image class to the rendered image widget", () => {
+    const doc = "![alt](pic.png)\n\nOther";
+    const view = makeView(doc, doc.length);
+    expect(view.dom.querySelector("img.cm-image")).not.toBeNull();
+    view.destroy();
+  });
 });

@@ -9,11 +9,14 @@ import {
 } from "@marginalia/core";
 import type { Platform } from "@marginalia/core";
 
-// Reads a note's frontmatter `css` key (doc-wide, unscoped) and `sectionStyles` map (scoped to
-// each section's `cm-section-<slug>` line class — sectionStyles.ts) and returns the combined CSS
-// for injection as a <style> tag in the live editor — the live-preview counterpart of
+// Reads a note's frontmatter `css` key and `sectionStyles` map and returns the combined CSS for
+// injection as a <style> tag in the live editor — the live-preview counterpart of
 // `buildDocCss`/`buildSectionCss` (core/export/sectionCss.ts), which do the same for exported
-// HTML's unscoped `<style>` content and `.md-section[data-section]` containers respectively.
+// HTML. Unlike the export path, `css` is NOT left unscoped here: a plain `<style>` tag affects
+// the whole DOM regardless of where React renders it, so an unscoped doc-wide stylesheet would
+// leak out of the note and into the rest of the app's chrome (toolbar, sidebar, ...). It's scoped
+// to `.cm-editor` (CodeMirror's own root class) instead, which still covers the whole note as
+// rendered, just not anything outside it.
 // Re-reads the referenced files only when the frontmatter text or the open file changes, not on
 // every keystroke, since `docText` otherwise mirrors every edit.
 export function useSectionCss(platform: Platform, path: string | undefined, docText: string): string {
@@ -44,7 +47,8 @@ export function useSectionCss(platform: Platform, path: string | undefined, docT
       if (docCssPath) {
         try {
           const absPath = resolveRelativePath(baseDir, docCssPath);
-          combined += (await platform.fs.readText(absPath)) + "\n";
+          const text = await platform.fs.readText(absPath);
+          combined += scopeCss(text, ".cm-editor") + "\n";
         } catch {
           // Missing/unreadable stylesheet — skip it, matching the export path's behavior.
         }

@@ -290,9 +290,11 @@ A `ViewPlugin` builds decorations from `syntaxTree(state)` over `view.visibleRan
 | `Emphasis`, `StrongEmphasis`, `Strikethrough` | mark class `cm-em` / `cm-strong` / `cm-strike` | hide `EmphasisMark`/`StrikethroughMark` |
 | `InlineCode` | mark `cm-inline-code` | hide `CodeMark` |
 | `Link` | mark `cm-link` on the text | hide `LinkMark`s and `URL` (show only the link text); Cmd+click opens it: `.md` relative paths open in the app, `http(s)` via `openExternal` |
-| `Image` | — | replace the whole node with an `<img>` widget (`src=resolveAssetUrl(resolved path)`, max-width 100%) |
+| `Image` | — | replace the whole node with an `<img class="cm-image">` widget (`src=resolveAssetUrl(resolved path)`, max-width 100%) |
 | `Blockquote` | line class `cm-quote` | hide `QuoteMark` |
 | `FencedCode` | line class `cm-code-block` on all lines; syntax highlighting via `@codemirror/language-data` | fence lines get class `cm-fence` (dimmed, still visible) |
+| `ListItem` | line class `cm-li` on every line it spans | — |
+| `Paragraph` | line class `cm-paragraph` on every line it spans | — |
 | `HorizontalRule` | — | replace with an `<hr>` widget |
 | `TaskMarker` | — | replace with a checkbox widget; clicking it toggles `[ ]`/`[x]` |
 | `ListMark`, `Table` | styled, never hidden | — |
@@ -471,29 +473,6 @@ Toolbar Export → a dialog with **Clean** / **Redline (base idea → checked-ou
 - The exported HTML never contains milestones, the comment block, or comment text. A test MUST assert this.
 - **theme.css:** body in `"Iowan Old Style", Georgia, serif` at 11pt with 1.45 line height; headings in a sans-serif (`-apple-system`); code in `"SF Mono", Menlo, monospace` at 9.5pt on a `#f5f5f5` background; `img { max-width: 100% }`; `ins { color:#1a7f37; text-decoration: underline; background:#e6ffec }`; `del { color:#cf222e; text-decoration: line-through; background:#ffebe9 }`; `h1,h2,h3 { break-after: avoid }`; `pre, img, table { break-inside: avoid }`.
 
-### 11.4 Classes and per-section custom CSS (`core/src/export/htmlTransform.ts`, `scopeCss.ts`, `sectionCss.ts`, `document/frontmatter.ts`)
-- Exported HTML gets a stable `md-<tag>` class on common structural elements (`h1`–`h6`, `p`, `li`, `ul`, `ol`, `blockquote`, `pre`, `code`, `table`, `a`, `img`, `strong`, `em`), so custom CSS has hooks beyond bare tag selectors. Plain tag selectors (`h1 { … }`) already work today via `theme.css`; the classes are for scoping/specificity, not a new capability.
-- A note MAY declare per-section stylesheets in its frontmatter:
-  ```yaml
-  ---
-  sectionStyles:
-    "Part One": styles/part-one.css
-    Part Two: styles/part-two.css
-  ---
-  ```
-  Each key is an H1's exact heading text; the value is a CSS file path, resolved relative to the note's directory (same convention as image references, §11.2). Parsed by `parseSectionStyles` — a hand-rolled parser for exactly this one shape, not general YAML.
-- A note MAY also declare a single doc-wide stylesheet with a top-level `css:` key, applied unscoped (the whole note, not just one section):
-  ```yaml
-  ---
-  css: styles/note.css
-  ---
-  ```
-  Parsed by `parseDocCss`. `css` and `sectionStyles` can both be present: the doc-wide stylesheet is included first, so a section's scoped rules win on equal specificity.
-- **Section bounds:** a section runs from one H1 heading up to (not including) the next H1, or the end of the document. Content before the first H1 belongs to no section and gets no per-section CSS (but still gets any doc-wide `css`).
-- **Export:** each section's top-level content is wrapped in `<div class="md-section" data-section="<slug>">` (`rehypeWrapSections`); a mapped stylesheet is read, scoped to `.md-section[data-section="<slug>"]` (`scopeCss`, a brace-depth-counting selector-prefixer — at-rules like `@media` are copied through unscoped, a known limitation), and inlined into the exported `<style>` tag alongside `theme.css`. The doc-wide `css` stylesheet is inlined as-is, unscoped (`buildDocCss`).
-- **Live preview:** the same H1-to-next-H1 sections get a `cm-section-<slug>` line class in the editor (`editor/sectionStyles.ts`); the same mapped stylesheet is read and scoped to `.cm-section-<slug>` instead, then injected as a `<style>` element in `EditorPane` (`editor/useSectionCss.ts`), with the doc-wide stylesheet injected unscoped first. `slugifyHeading` is shared between both paths so the slugs always match.
-- A missing or unreadable stylesheet (doc-wide or per-section) is skipped silently in both paths (matches `embedImages.ts`'s handling of an unreadable image).
-
 ### 11.3 Native PDF (`src-tauri/src/pdf.rs`)
 **Primary approach:**
 1. Create a hidden `WebviewWindow` (`visible(false)`, 800×1000) with label `pdf-<n>`, loading the app's `print.html` (a blank page included in the build).
@@ -508,6 +487,51 @@ Toolbar Export → a dialog with **Clean** / **Redline (base idea → checked-ou
 5. Verify the output file exists and is larger than 1 KB. Otherwise return an error.
 
 **Fallback** (use it only if the primary approach still fails after two focused attempts; record the reason in `DECISIONS.md`): open a **visible** "Export preview" window with the same HTML and a **Print…** button that calls `window.print()`. The user then chooses "Save as PDF" in the macOS dialog. In this mode `renderHtmlToPdf` resolves once the window opens, and the UI says "Use Save as PDF in the print dialog."
+
+### 11.4 Classes and per-section custom CSS (`core/src/export/htmlTransform.ts`, `scopeCss.ts`, `sectionCss.ts`, `document/frontmatter.ts`, `editor/sectionStyles.ts`, `editor/useSectionCss.ts`)
+
+A note's custom CSS targets **two different renderers that don't share a DOM, and so don't share one class vocabulary**:
+- **Export** (`toHtml`/`redlineHtml`) produces a real HTML tree with real tags, so a plain tag selector (`h1 { … }`) works directly, same as `theme.css`. Common elements additionally get a stable `md-<tag>` class for scoping/specificity beyond bare tags.
+- **Live preview** is CodeMirror rendering markdown *source* with decorations, not a rendered HTML tree — a heading is a `<div class="cm-line cm-h1">`, never a real `<h1>` element. **A plain tag selector matches nothing in the live editor.** Target the `cm-*` class instead.
+
+| Markdown construct | Export: tag + class | Live editor: class |
+|---|---|---|
+| Heading (`#`–`######`) | `h1`–`h6`, `.md-h1`–`.md-h6` | `.cm-h1`–`.cm-h6` (line) |
+| Paragraph | `p`, `.md-p` | `.cm-paragraph` (line) |
+| List item | `li`, `.md-li` | `.cm-li` (line) |
+| List container | `ul`/`ol`, `.md-ul`/`.md-ol` | — (no container; each item is its own line) |
+| Blockquote | `blockquote`, `.md-blockquote` | `.cm-quote` (line) |
+| Fenced code block | `pre`/`code`, `.md-pre`/`.md-code` | `.cm-code-block` (line; fence lines also get `.cm-fence`) |
+| Inline code | `code`, `.md-code` | `.cm-inline-code` (mark) |
+| Table | `table`, `.md-table` | — (tables are shown as styled source, §1) |
+| Link | `a`, `.md-link` | `.cm-link` (mark, text only — the URL is hidden) |
+| Image | `img`, `.md-img` | `.cm-image` (the rendered `<img>` widget) |
+| **Strong** / _Emphasis_ | `strong`/`em`, `.md-strong`/`.md-em` | `.cm-strong`/`.cm-em` (mark) |
+| ~~Strikethrough~~ | `del` (no class) | `.cm-strike` (mark) |
+| Frontmatter block | stripped before clean export; still literal text in redline export (§11.2's known gap) | `.cm-frontmatter` (line, dimmed) |
+
+A note MAY declare per-section stylesheets in its frontmatter:
+```yaml
+---
+sectionStyles:
+  "Part One": styles/part-one.css
+  Part Two: styles/part-two.css
+---
+```
+Each key is an H1's exact heading text; the value is a CSS file path, resolved relative to the note's directory (same convention as image references, §11.2). Parsed by `parseSectionStyles` — a hand-rolled parser for exactly this one shape, not general YAML.
+
+A note MAY also declare a single doc-wide stylesheet with a top-level `css:` key, covering the whole note rather than one section:
+```yaml
+---
+css: styles/note.css
+---
+```
+Parsed by `parseDocCss`. `css` and `sectionStyles` can both be present: the doc-wide stylesheet is included first, so a section's scoped rules win on equal specificity.
+
+- **Section bounds:** a section runs from one H1 heading up to (not including) the next H1, or the end of the document. Content before the first H1 belongs to no section and gets no per-section CSS (but still gets any doc-wide `css`).
+- **Export:** each section's top-level content is wrapped in `<div class="md-section" data-section="<slug>">` (`rehypeWrapSections`); a mapped stylesheet is read, scoped to `.md-section[data-section="<slug>"]` (`scopeCss`, a brace-depth-counting selector-prefixer — at-rules like `@media` are copied through unscoped, a known limitation), and inlined into the exported `<style>` tag alongside `theme.css`. The doc-wide `css` stylesheet is inlined as-is, unscoped — export is a standalone HTML document, so there's nothing else for it to leak into.
+- **Live preview:** the same H1-to-next-H1 sections get a `cm-section-<slug>` line class in the editor (`editor/sectionStyles.ts`); a mapped stylesheet is read and scoped to `.cm-section-<slug>` instead, then injected as a `<style>` element in `EditorPane` (`editor/useSectionCss.ts`). The doc-wide `css` stylesheet is scoped to `.cm-editor` (CodeMirror's own root class) rather than left unscoped — unlike export, the live editor shares one DOM with the rest of the app, and an unscoped `<style>` tag would otherwise leak into the toolbar/sidebar/etc. `slugifyHeading` is shared between both paths so the slugs always match.
+- A missing or unreadable stylesheet (doc-wide or per-section) is skipped silently in both paths (matches `embedImages.ts`'s handling of an unreadable image).
 
 ---
 

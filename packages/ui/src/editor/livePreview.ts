@@ -28,6 +28,7 @@ class ImageWidget extends WidgetType {
   }
   toDOM(): HTMLElement {
     const img = document.createElement("img");
+    img.className = "cm-image";
     img.src = this.src;
     img.alt = this.alt;
     img.style.maxWidth = "100%";
@@ -106,6 +107,7 @@ export function buildLivePreviewDecorations(view: EditorView): DecorationSet {
   const doc = view.state.doc;
   const quoteLines = new Set<number>();
   const listItemLines = new Set<number>();
+  const paragraphLines = new Set<number>();
   const codeBlockLines = new Map<number, "fence" | "body">();
 
   for (const { from, to } of view.visibleRanges) {
@@ -181,6 +183,12 @@ export function buildLivePreviewDecorations(view: EditorView): DecorationSet {
             for (let l = startLine; l <= endLine; l++) listItemLines.add(l);
             break;
           }
+          case "Paragraph": {
+            const startLine = doc.lineAt(node.from).number;
+            const endLine = doc.lineAt(node.to).number;
+            for (let l = startLine; l <= endLine; l++) paragraphLines.add(l);
+            break;
+          }
           case "Blockquote": {
             const startLine = doc.lineAt(node.from).number;
             const endLine = doc.lineAt(node.to).number;
@@ -230,6 +238,10 @@ export function buildLivePreviewDecorations(view: EditorView): DecorationSet {
   for (const l of listItemLines) {
     const line = doc.line(l);
     entries.push({ from: line.from, to: line.from, decoration: Decoration.line({ class: "cm-li" }) });
+  }
+  for (const l of paragraphLines) {
+    const line = doc.line(l);
+    entries.push({ from: line.from, to: line.from, decoration: Decoration.line({ class: "cm-paragraph" }) });
   }
   for (const [l, kind] of codeBlockLines) {
     const line = doc.line(l);
