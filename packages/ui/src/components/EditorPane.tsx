@@ -8,6 +8,7 @@ import { insertCommentTags } from "../editor/comments.js";
 import { clipboardHandlers } from "../editor/clipboard.js";
 import { setRedlineOn, setBaselineClean, setInlineDeletions } from "../editor/redline.js";
 import { setSourceMode } from "../editor/sourceMode.js";
+import { useSectionCss } from "../editor/useSectionCss.js";
 import { usePlatform } from "../platformContext.js";
 import { useStore } from "../store.js";
 import { editorBridge } from "../editorBridge.js";
@@ -25,6 +26,7 @@ export function EditorPane() {
   const openFile = useStore((s) => s.openFile);
   const markDirty = useStore((s) => s.markDirty);
   const markSaved = useStore((s) => s.markSaved);
+  const sectionCss = useSectionCss(platform, openFile?.path, openFile?.docText ?? "");
 
   useEffect(() => {
     const path = openFile?.path;
@@ -179,5 +181,10 @@ export function EditorPane() {
     return <div className="empty-state">Select a note or press Cmd+N</div>;
   }
 
-  return <div className="editor-pane" ref={containerRef} />;
+  return (
+    <>
+      {sectionCss && <style>{sectionCss}</style>}
+      <div className="editor-pane" ref={containerRef} />
+    </>
+  );
 }

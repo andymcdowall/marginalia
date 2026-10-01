@@ -1,6 +1,7 @@
 import { EditorState, RangeSetBuilder, StateEffect, StateField, type Extension } from "@codemirror/state";
 import { Decoration, type DecorationSet, EditorView } from "@codemirror/view";
 import { frontmatterField } from "./frontmatter.js";
+import { sectionsField } from "./sectionStyles.js";
 import { livePreview } from "./livePreview.js";
 import { sourceModeField } from "./sourceMode.js";
 import { editorTheme } from "./theme.js";
@@ -41,6 +42,7 @@ export function baseExtensions(): Extension[] {
     markdownExtensions(),
     sourceModeField,
     frontmatterField,
+    sectionsField,
     deletedField,
     livePreview,
     editorTheme,

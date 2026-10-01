@@ -89,4 +89,10 @@ describe("livePreview: markup hidden on inactive lines, shown on active lines", 
     expect(active.dom.textContent ?? "").toContain("https://example.com");
     active.destroy();
   });
+
+  it("applies the cm-li line class to list item lines", () => {
+    const view = makeView("- one\n- two", 0);
+    expect(view.dom.querySelectorAll(".cm-li").length).toBe(2);
+    view.destroy();
+  });
 });

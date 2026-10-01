@@ -22,8 +22,10 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-// Joins an absolute directory with a relative markdown image path (macOS only, forward slashes).
-function resolveRelative(baseDir: string, rel: string): string {
+// Joins an absolute directory with a relative path (macOS only, forward slashes). Exported for
+// reuse anywhere else a note-relative reference needs resolving against the note's directory —
+// currently `sectionCss.ts` (core) and the live-preview section-CSS loader (ui).
+export function resolveRelativePath(baseDir: string, rel: string): string {
   if (rel.startsWith("/")) return rel;
   const parts = baseDir.split("/").filter(Boolean);
   for (const part of rel.split("/")) {
@@ -56,7 +58,7 @@ export async function embedImages(platform: Platform, baseDir: string, markdown:
       continue;
     }
     try {
-      const absPath = resolveRelative(baseDir, src);
+      const absPath = resolveRelativePath(baseDir, src);
       const bytes = await platform.fs.readBinary(absPath);
       const dataUri = `data:${mimeFromPath(src)};base64,${bytesToBase64(bytes)}`;
       output += `![${alt}](${dataUri})`;

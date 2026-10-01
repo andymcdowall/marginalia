@@ -39,7 +39,7 @@ describe("SPEC.md §11.2: exported HTML never contains milestones, comment block
     expect(html).not.toContain("comment-end");
     expect(html).not.toContain("marginalia:comments");
     expect(html).not.toContain(SECRET_COMMENT_BODY);
-    expect(html).toContain("<h2>Heading</h2>");
+    expect(html).toContain('<h2 class="md-h2">Heading</h2>');
     expect(html).toContain("brown fox");
   });
 
@@ -90,5 +90,40 @@ describe("SPEC.md §11.2: redline HTML <ins>/<del> counts match the fixture's hu
     const html = await redlineHtml(platform, dir, text, text, "Origin", "idea-1");
     expect(html).not.toContain("<ins>");
     expect(html).not.toContain("<del>");
+  });
+});
+
+describe("Per-section custom CSS (frontmatter sectionStyles)", () => {
+  it("adds md-* classes and wraps each H1 section, scoping its mapped stylesheet", async () => {
+    const dir = await tempDir();
+    const platform = createNodePlatform(path.join(dir, "store.json"));
+    await fs.writeFile(path.join(dir, "part-one.css"), "h1 { color: purple; }\n");
+
+    const body =
+      '---\nsectionStyles:\n  "Part One": part-one.css\n---\n' +
+      "# Part One\n\nSome *text* and a list:\n\n- one\n- two\n\n" +
+      "# Part Two\n\nOther text.\n";
+
+    const html = await toHtml(platform, dir, body);
+
+    // frontmatter itself never leaks into the rendered body
+    expect(html).not.toContain("sectionStyles");
+    // common structures get stable classes
+    expect(html).toContain('<h1 class="md-h1">Part One</h1>');
+    expect(html).toContain('<li class="md-li">one</li>');
+    expect(html).toContain('<em class="md-em">text</em>');
+    // each H1 starts its own scoped section container
+    expect(html).toContain('<div class="md-section" data-section="part-one">');
+    expect(html).toContain('<div class="md-section" data-section="part-two">');
+    // the mapped stylesheet is scoped to Part One's section only
+    expect(html).toContain('.md-section[data-section="part-one"] h1 { color: purple; }');
+  });
+
+  it("skips a stylesheet that can't be read instead of failing the export", async () => {
+    const dir = await tempDir();
+    const platform = createNodePlatform(path.join(dir, "store.json"));
+    const body = '---\nsectionStyles:\n  "Part One": missing.css\n---\n# Part One\n\nText.\n';
+    const html = await toHtml(platform, dir, body);
+    expect(html).toContain('<h1 class="md-h1">Part One</h1>');
   });
 });

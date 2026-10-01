@@ -29,7 +29,6 @@ This spec is written to be executed directly. Where it says **MUST**, do exactly
 - PDF export, clean or redline, with a default theme. Comments never appear in exports.
 
 ### Out of scope (v1). Don't build these.
-- Custom export CSS. The export stylesheet is a standalone file, so a later version can make it configurable.
 - Wikilinks, backlinks, graph view, plugins, tags, and search across files.
 - Git remotes (push/pull/clone), multiple users, and sync.
 - Windows, Linux, web, and mobile.
@@ -471,6 +470,22 @@ Toolbar Export → a dialog with **Clean** / **Redline (base idea → checked-ou
   - Known limitation (log it; don't fix it): a hunk that crosses markdown syntax (for example, half of a `**bold**`) may render imperfectly.
 - The exported HTML never contains milestones, the comment block, or comment text. A test MUST assert this.
 - **theme.css:** body in `"Iowan Old Style", Georgia, serif` at 11pt with 1.45 line height; headings in a sans-serif (`-apple-system`); code in `"SF Mono", Menlo, monospace` at 9.5pt on a `#f5f5f5` background; `img { max-width: 100% }`; `ins { color:#1a7f37; text-decoration: underline; background:#e6ffec }`; `del { color:#cf222e; text-decoration: line-through; background:#ffebe9 }`; `h1,h2,h3 { break-after: avoid }`; `pre, img, table { break-inside: avoid }`.
+
+### 11.4 Classes and per-section custom CSS (`core/src/export/htmlTransform.ts`, `scopeCss.ts`, `sectionCss.ts`, `document/frontmatter.ts`)
+- Exported HTML gets a stable `md-<tag>` class on common structural elements (`h1`–`h6`, `p`, `li`, `ul`, `ol`, `blockquote`, `pre`, `code`, `table`, `a`, `img`, `strong`, `em`), so custom CSS has hooks beyond bare tag selectors. Plain tag selectors (`h1 { … }`) already work today via `theme.css`; the classes are for scoping/specificity, not a new capability.
+- A note MAY declare per-section stylesheets in its frontmatter:
+  ```yaml
+  ---
+  sectionStyles:
+    "Part One": styles/part-one.css
+    Part Two: styles/part-two.css
+  ---
+  ```
+  Each key is an H1's exact heading text; the value is a CSS file path, resolved relative to the note's directory (same convention as image references, §11.2). Parsed by `parseSectionStyles` — a hand-rolled parser for exactly this one shape, not general YAML.
+- **Section bounds:** a section runs from one H1 heading up to (not including) the next H1, or the end of the document. Content before the first H1 belongs to no section and gets no per-section CSS.
+- **Export:** each section's top-level content is wrapped in `<div class="md-section" data-section="<slug>">` (`rehypeWrapSections`); a mapped stylesheet is read, scoped to `.md-section[data-section="<slug>"]` (`scopeCss`, a brace-depth-counting selector-prefixer — at-rules like `@media` are copied through unscoped, a known limitation), and inlined into the exported `<style>` tag alongside `theme.css`.
+- **Live preview:** the same H1-to-next-H1 sections get a `cm-section-<slug>` line class in the editor (`editor/sectionStyles.ts`); the same mapped stylesheet is read and scoped to `.cm-section-<slug>` instead, then injected as a `<style>` element in `EditorPane` (`editor/useSectionCss.ts`). `slugifyHeading` is shared between both paths so the slugs always match.
+- A missing or unreadable stylesheet is skipped silently in both paths (matches `embedImages.ts`'s handling of an unreadable image).
 
 ### 11.3 Native PDF (`src-tauri/src/pdf.rs`)
 **Primary approach:**
