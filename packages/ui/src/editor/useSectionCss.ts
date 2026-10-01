@@ -8,15 +8,20 @@ import {
   slugifyHeading,
 } from "@marginalia/core";
 import type { Platform } from "@marginalia/core";
+import { aliasTagSelectors } from "./cssTagAlias.js";
 
 // Reads a note's frontmatter `css` key and `sectionStyles` map and returns the combined CSS for
 // injection as a <style> tag in the live editor — the live-preview counterpart of
 // `buildDocCss`/`buildSectionCss` (core/export/sectionCss.ts), which do the same for exported
-// HTML. Unlike the export path, `css` is NOT left unscoped here: a plain `<style>` tag affects
-// the whole DOM regardless of where React renders it, so an unscoped doc-wide stylesheet would
-// leak out of the note and into the rest of the app's chrome (toolbar, sidebar, ...). It's scoped
-// to `.cm-editor` (CodeMirror's own root class) instead, which still covers the whole note as
-// rendered, just not anything outside it.
+// HTML. Two differences from the export path:
+// - Every stylesheet is run through `aliasTagSelectors` first, so a bare-tag rule (`h1 { }`)
+//   also matches the live editor's `cm-*` classes — the editor has no real <h1>/<li>/... tags
+//   for a plain tag selector to match otherwise (SPEC.md §11.4).
+// - `css` is NOT left unscoped here: a plain <style> tag affects the whole DOM regardless of
+//   where React renders it, so an unscoped doc-wide stylesheet would leak out of the note and
+//   into the rest of the app's chrome (toolbar, sidebar, ...). It's scoped to `.cm-editor`
+//   (CodeMirror's own root class) instead, which still covers the whole note as rendered, just
+//   not anything outside it.
 // Re-reads the referenced files only when the frontmatter text or the open file changes, not on
 // every keystroke, since `docText` otherwise mirrors every edit.
 export function useSectionCss(platform: Platform, path: string | undefined, docText: string): string {
@@ -48,7 +53,7 @@ export function useSectionCss(platform: Platform, path: string | undefined, docT
         try {
           const absPath = resolveRelativePath(baseDir, docCssPath);
           const text = await platform.fs.readText(absPath);
-          combined += scopeCss(text, ".cm-editor") + "\n";
+          combined += scopeCss(aliasTagSelectors(text), ".cm-editor") + "\n";
         } catch {
           // Missing/unreadable stylesheet — skip it, matching the export path's behavior.
         }
@@ -57,7 +62,7 @@ export function useSectionCss(platform: Platform, path: string | undefined, docT
         try {
           const absPath = resolveRelativePath(baseDir, relPath);
           const text = await platform.fs.readText(absPath);
-          combined += scopeCss(text, `.cm-section-${slugifyHeading(heading)}`) + "\n";
+          combined += scopeCss(aliasTagSelectors(text), `.cm-section-${slugifyHeading(heading)}`) + "\n";
         } catch {
           // Missing/unreadable stylesheet — skip it, matching the export path's behavior.
         }

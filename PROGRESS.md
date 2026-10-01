@@ -157,9 +157,16 @@ Complete (Phases 0–7)
 - SPEC.md §11.4 rewritten with a full class-by-class table (export's tag + `md-*` class vs. the live editor's `cm-*` class for every common construct), and moved to its correct position after §11.3 (it had been misnumbered/misplaced ahead of "Native PDF" since it was first added).
 - Filled two real gaps so the table has an entry for every row: `livePreview.ts` now gives plain paragraphs a `cm-paragraph` line class and the rendered image widget a `cm-image` class (previously neither had any class at all).
 - **Separately found and fixed a real bug while tracing this:** the doc-wide `css:` stylesheet was injected into the live editor completely unscoped, leaking into the whole app's UI (toolbar, sidebar, …), not just the note. `useSectionCss.ts` now scopes it to `.cm-editor` instead. Export's doc-wide CSS is correctly left unscoped (it's a standalone document, nothing else to leak into) — unaffected.
-- Considered and explicitly declined (per the user): auto-aliasing bare tag selectors to their `cm-*` equivalent so one stylesheet "just works" in both renderers. The user said distinct classes are fine and asked for documentation instead.
+- Initially declined (per the user, "distinct classes are fine"), then asked for again next message: auto-aliasing bare tag selectors to their `cm-*` equivalent so one stylesheet "just works" in both renderers.
 - `pnpm verify` passes (132 tests). New tests: `cm-paragraph`/`cm-image` cases in `livePreview.test.ts`.
 - **Manual check still needed:** open a note with `css: note.css` setting e.g. `.cm-h1 { color: red }`, confirm it colors headings in the live editor and does NOT bleed into the toolbar/sidebar; confirm the same note's exported PDF is still styled correctly by its `h1 { color: red }` (or `.md-h1`) rule.
+
+### Post-Phase 7: Auto-alias bare tag selectors for the live editor (follow-up — the user asked for this after all)
+- Core: `export/scopeCss.ts`'s rule-splitting loop factored out as `parseTopLevelCssRules` (behavior-preserving — `scopeCss` itself is unchanged, just built on the shared helper now).
+- UI: new `editor/cssTagAlias.ts` (`aliasTagSelectors`) — for each top-level rule, a bare-tag selector (`h1`, `li`, `p`, `blockquote`, `code`, `pre`, `strong`/`b`, `em`/`i`, `del`/`s`, `a`, `img`; case-insensitive) gets its matching `.cm-*` class added alongside it. Anything else (classes, combinators, pseudo-classes) is left as-is. Wired into `useSectionCss.ts`: every stylesheet (doc-wide and per-section) is aliased before it's scoped, so a stylesheet written once with plain tags now works unmodified in both the live editor and PDF export.
+- SPEC.md §11.4 updated to describe the aliasing (and that the export side needs none of this, since it already has real tags).
+- `pnpm verify` passes. New tests: `packages/ui/test/cssTagAlias.test.ts` (aliasing cases, including "leaves complex selectors alone" and "leaves at-rules alone"); `scopeCss.test.ts` re-run unchanged to confirm the refactor didn't change its behavior.
+- **Manual check still needed:** open a note with `css: note.css` containing plain tags only (`h1 { color: red; } li { font-style: italic; }`), confirm both rules visibly apply in the live editor (not just the exported PDF).
 
 ## Blocked
 (none)

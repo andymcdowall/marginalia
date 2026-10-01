@@ -10,14 +10,16 @@ export function slugifyHeading(text: string): string {
   return slug || "section";
 }
 
-// Naively scopes a stylesheet to a container selector by prefixing every selector of every
-// top-level rule with `scopeSelector`. This is a brace-depth-counting string transform, not a
-// real CSS parser: an at-rule (`@media`, `@font-face`, ...) is copied through verbatim,
-// including any rules nested inside it, rather than having its own contents scoped — so a
-// `@media` block's selectors stay unscoped. Logged as a known limitation rather than pulling in
-// a CSS parser, which isn't in SPEC.md §3.1's allowed dependency list.
-export function scopeCss(css: string, scopeSelector: string): string {
-  let out = "";
+export type CssRule = { selectors: string; block: string }; // block includes its braces
+
+// Splits a stylesheet into top-level rules by counting brace depth — not a real CSS parser, but
+// enough to tell an at-rule's own block (`@media { ... }`) apart from a plain rule without being
+// confused by the nested braces inside it. `selectors` is the raw, un-split text before `{`
+// (trimmed; split on `,` yourself for a selector list). Shared by `scopeCss` below and the
+// live-preview tag aliasing in `packages/ui/src/editor/cssTagAlias.ts`, so both walk a stylesheet
+// the same way.
+export function parseTopLevelCssRules(css: string): CssRule[] {
+  const rules: CssRule[] = [];
   let i = 0;
   const n = css.length;
   while (i < n) {
@@ -39,7 +41,19 @@ export function scopeCss(css: string, scopeSelector: string): string {
       i++;
     } while (i < n && depth > 0);
     const block = css.slice(blockStart, i);
-    if (!selectors) continue;
+    if (selectors) rules.push({ selectors, block });
+  }
+  return rules;
+}
+
+// Naively scopes a stylesheet to a container selector by prefixing every selector of every
+// top-level rule with `scopeSelector`. An at-rule (`@media`, `@font-face`, ...) is copied through
+// verbatim, including any rules nested inside it, rather than having its own contents scoped —
+// so a `@media` block's selectors stay unscoped. Logged as a known limitation rather than
+// pulling in a real CSS parser, which isn't in SPEC.md §3.1's allowed dependency list.
+export function scopeCss(css: string, scopeSelector: string): string {
+  let out = "";
+  for (const { selectors, block } of parseTopLevelCssRules(css)) {
     if (selectors.startsWith("@")) {
       out += `${selectors} ${block}\n`;
       continue;
