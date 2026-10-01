@@ -102,11 +102,17 @@ export function App() {
       const id = (e as CustomEvent<string>).detail;
       if (id === "open-folder") void handleOpenFolderRef.current();
       else if (id === "save-idea") void saveIdea();
+      else if (id === "toggle-compare") useStore.getState().setRedlineOn(!useStore.getState().redlineOn);
       else if (id === "export-pdf" && useStore.getState().openFile) useStore.getState().setExportOpen(true);
     }
     window.addEventListener("marginalia:menu", handleMenu);
     return () => window.removeEventListener("marginalia:menu", handleMenu);
   }, []);
+
+  // Keep the View > Compare checkmark in step with the store (main.tsx relays this to Rust).
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("marginalia:compare-state", { detail: redlineOn }));
+  }, [redlineOn]);
 
   useEffect(() => {
     void (async () => {

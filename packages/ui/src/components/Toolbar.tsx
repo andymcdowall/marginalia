@@ -7,14 +7,11 @@ import { showPrompt } from "../prompt.js";
 import { saveIdea } from "../ideaActions.js";
 
 // SPEC.md §12. File name, Live/Source toggle, Comment, Redline toggle + baseline label, Snapshot,
-// (Save idea, Open folder and Export live in the File menu.)
+// (Save idea, Open folder and Export live in the File menu; Compare is in the View menu.)
 export function Toolbar() {
   const openFile = useStore((s) => s.openFile);
   const sourceMode = useStore((s) => s.sourceMode);
   const toggleSourceMode = useStore((s) => s.toggleSourceMode);
-  const redlineOn = useStore((s) => s.redlineOn);
-  const setRedlineOn = useStore((s) => s.setRedlineOn);
-  const baseline = useStore((s) => s.baseline);
   const compareLayout = useStore((s) => s.compareLayout);
   const setCompareLayout = useStore((s) => s.setCompareLayout);
   const draftDirty = useStore((s) => s.draftDirty);
@@ -68,9 +65,6 @@ export function Toolbar() {
         </button>
         <button type="button" onClick={handleComment} title="Cmd+Shift+M">
           Comment
-        </button>
-        <button type="button" className={redlineOn ? "active" : ""} onClick={() => setRedlineOn(!redlineOn)} title="Cmd+Shift+R">
-          {`Compare with ${baseline.kind === "branch" ? baseline.name : "origin"}`}
         </button>
         <button type="button" onClick={() => void handleSnapshot()}>
           Snapshot

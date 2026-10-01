@@ -135,7 +135,7 @@ export const useStore = create<Store>((set) => ({
   draftThreadId: null,
   commentFilter: "open",
   sidebarTab: "comments",
-  redlineOn: false,
+  redlineOn: true,
   compareLayout: "side-by-side",
   baseline: { kind: "branch", name: "main" },
   baselineLabel: "main",

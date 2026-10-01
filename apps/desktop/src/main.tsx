@@ -1,4 +1,5 @@
 import { StrictMode } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { createRoot } from "react-dom/client";
 import { App, PlatformProvider } from "@marginalia/ui";
@@ -17,6 +18,9 @@ if (last) await setWorkspaceRoot(last).catch(() => {});
 
 // The UI package can't import @tauri-apps/*, so native menu clicks are forwarded as a DOM event.
 await listen<string>("menu", (e) => window.dispatchEvent(new CustomEvent("marginalia:menu", { detail: e.payload })));
+window.addEventListener("marginalia:compare-state", (e) => {
+  void invoke("set_compare_checked", { checked: (e as CustomEvent<boolean>).detail });
+});
 
 createRoot(root).render(
   <StrictMode>

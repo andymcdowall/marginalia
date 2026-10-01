@@ -74,10 +74,6 @@ export function EditorPane() {
         e.preventDefault();
         handleCreateComment();
       }
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "r") {
-        e.preventDefault();
-        useStore.getState().setRedlineOn(!useStore.getState().redlineOn);
-      }
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "e") {
         e.preventDefault();
         const next = !useStore.getState().sourceMode;

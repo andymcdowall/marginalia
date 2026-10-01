@@ -33,8 +33,6 @@ export async function initCompare(): Promise<void> {
   const names = (await listBranches(ws.git)).map((b) => b.name);
   const base = defaultCompareBase(names, store().currentBranch);
   store().setBaseline({ kind: "branch", name: base }, base);
-  // Comparing an idea against itself shows nothing, so only start in compare view when they differ.
-  store().setRedlineOn(base !== store().currentBranch);
   await refreshDraft();
 }
 

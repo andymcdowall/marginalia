@@ -6,7 +6,7 @@ mod store;
 mod watch;
 
 use state::AppState;
-use tauri::menu::{Menu, MenuItem, MenuItemKind, PredefinedMenuItem};
+use tauri::menu::{CheckMenuItem, Menu, MenuItem, MenuItemKind, PredefinedMenuItem};
 use tauri::{Emitter, Manager, WindowEvent};
 
 #[tauri::command]
@@ -19,6 +19,13 @@ async fn set_workspace(app: tauri::AppHandle, state: tauri::State<'_, AppState>,
         .allow_directory(&path, true)
         .map_err(|e| e.to_string())?;
     Ok(())
+}
+
+#[tauri::command]
+fn set_compare_checked(app: tauri::AppHandle, checked: bool) {
+    if let Some(MenuItemKind::Check(item)) = app.menu().and_then(|m| m.get("toggle-compare")) {
+        let _ = item.set_checked(checked);
+    }
 }
 
 #[tauri::command]
@@ -43,10 +50,14 @@ pub fn run() {
             let save = MenuItem::with_id(handle, "save-idea", "Save Idea", true, Some("CmdOrCtrl+S"))?;
             let export = MenuItem::with_id(handle, "export-pdf", "Export PDF…", true, Some("CmdOrCtrl+Shift+E"))?;
             let sep = PredefinedMenuItem::separator(handle)?;
+            let compare = CheckMenuItem::with_id(handle, "toggle-compare", "Compare", true, true, Some("CmdOrCtrl+Shift+R"))?;
+            let view_sep = PredefinedMenuItem::separator(handle)?;
             for item in menu.items()? {
                 if let MenuItemKind::Submenu(sub) = item {
-                    if sub.text()? == "File" {
-                        sub.insert_items(&[&open, &save, &export, &sep], 0)?;
+                    match sub.text()?.as_str() {
+                        "File" => sub.insert_items(&[&open, &save, &export, &sep], 0)?,
+                        "View" => sub.insert_items(&[&compare, &view_sep], 0)?,
+                        _ => {}
                     }
                 }
             }
@@ -65,6 +76,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             set_workspace,
             quit_now,
+            set_compare_checked,
             fs::fs_read_text,
             fs::fs_read_binary,
             fs::fs_write_text,
