@@ -9,6 +9,9 @@ export interface FileSystem {
   readBinary(path: string): Promise<Uint8Array>;
   writeText(path: string, content: string): Promise<void>; // atomic: temp file + rename
   writeBinary(path: string, data: Uint8Array): Promise<void>;
+  // The one write allowed outside the workspace root: only for a path the person just chose in
+  // `dialogs.saveFile` (Markdown export), same exemption `pdf.renderHtmlToPdf` has.
+  writeExportText(path: string, content: string): Promise<void>;
   exists(path: string): Promise<boolean>;
   list(dir: string): Promise<DirEntry[]>; // non-recursive
   mkdir(path: string): Promise<void>; // recursive

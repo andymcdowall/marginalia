@@ -30,6 +30,9 @@ class TauriFileSystem implements FileSystem {
   async writeBinary(path: string, data: Uint8Array): Promise<void> {
     await invoke("fs_write_binary", { path, content: Array.from(data) });
   }
+  async writeExportText(path: string, content: string): Promise<void> {
+    await invoke("fs_write_export_text", { path, content });
+  }
   async exists(path: string): Promise<boolean> {
     return invoke("fs_exists", { path });
   }

@@ -19,6 +19,7 @@ export * from "./export/embedImages.js";
 export * from "./export/scopeCss.js";
 export * from "./export/sectionCss.js";
 export * from "./export/toHtml.js";
+export * from "./export/toMarkdown.js";
 export * from "./export/redlineHtml.js";
 export * from "./export/renderMarkdownFragment.js";
 export * from "./document/splitFile.js";

@@ -41,6 +41,9 @@ class NodeFileSystem implements FileSystem {
   async writeBinary(p: string, data: Uint8Array): Promise<void> {
     await atomicWrite(p, data);
   }
+  async writeExportText(p: string, content: string): Promise<void> {
+    await atomicWrite(p, content);
+  }
   async exists(p: string): Promise<boolean> {
     try {
       await fsp.access(p);

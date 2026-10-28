@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { resolveBaselineSha, baselineText, cleanText, splitFile, toHtml, redlineHtml, type PdfOptions } from "@marginalia/core";
+import { resolveBaselineSha, baselineText, cleanText, splitFile, toHtml, toMarkdown, redlineHtml, type PdfOptions } from "@marginalia/core";
 import { usePlatform } from "../platformContext.js";
 import { useStore } from "../store.js";
 import { activeEditorView } from "./EditorPane.js";
@@ -16,6 +16,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   const baseline = useStore((s) => s.baseline);
   const baselineLabel = useStore((s) => s.baselineLabel);
   const settings = useStore((s) => s.settings);
+  const [format, setFormat] = useState<"pdf" | "markdown">("pdf");
   const [mode, setMode] = useState<"clean" | "redline">("clean");
   const [pageSize, setPageSize] = useState<PdfOptions["pageSize"]>(settings.defaultPageSize);
   const [busy, setBusy] = useState(false);
@@ -28,6 +29,14 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
       const body = view ? view.state.doc.toString() : "";
       const baseDir = openFile.path.slice(0, openFile.path.lastIndexOf("/"));
       const name = openFile.path.slice(openFile.path.lastIndexOf("/") + 1).replace(/\.md$/, "");
+
+      if (format === "markdown") {
+        const outPath = await platform.dialogs.saveFile({ defaultName: `${name}.md`, extensions: ["md"] });
+        if (!outPath) return;
+        await platform.fs.writeExportText(outPath, toMarkdown(body));
+        onClose();
+        return;
+      }
 
       const html =
         mode === "clean"
@@ -51,23 +60,38 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   return (
     <div className="export-dialog-overlay" onClick={onClose}>
       <div className="export-dialog" onClick={(e) => e.stopPropagation()}>
-        <h3>Export PDF</h3>
-        <label>
-          <input type="radio" checked={mode === "clean"} onChange={() => setMode("clean")} /> Clean
-        </label>
-        <label>
-          <input type="radio" checked={mode === "redline"} onChange={() => setMode("redline")} />
-          {` Redline (vs ${baselineLabel})`}
-        </label>
+        <h3>Export</h3>
         <div>
           <label>
-            Page size:{" "}
-            <select value={pageSize} onChange={(e) => setPageSize(e.target.value as PdfOptions["pageSize"])}>
-              <option value="letter">Letter</option>
-              <option value="a4">A4</option>
+            Format:{" "}
+            <select value={format} onChange={(e) => setFormat(e.target.value as "pdf" | "markdown")}>
+              <option value="pdf">PDF</option>
+              <option value="markdown">Markdown</option>
             </select>
           </label>
         </div>
+        {format === "pdf" ? (
+          <>
+            <label>
+              <input type="radio" checked={mode === "clean"} onChange={() => setMode("clean")} /> Clean
+            </label>
+            <label>
+              <input type="radio" checked={mode === "redline"} onChange={() => setMode("redline")} />
+              {` Redline (vs ${baselineLabel})`}
+            </label>
+            <div>
+              <label>
+                Page size:{" "}
+                <select value={pageSize} onChange={(e) => setPageSize(e.target.value as PdfOptions["pageSize"])}>
+                  <option value="letter">Letter</option>
+                  <option value="a4">A4</option>
+                </select>
+              </label>
+            </div>
+          </>
+        ) : (
+          <p>Plain markdown with comments, frontmatter, and HTML comments removed.</p>
+        )}
         <div className="export-dialog-actions">
           <button type="button" onClick={onClose} disabled={busy}>
             Cancel

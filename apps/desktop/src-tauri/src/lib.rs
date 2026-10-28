@@ -48,7 +48,7 @@ pub fn run() {
             let menu = Menu::default(handle)?;
             let open = MenuItem::with_id(handle, "open-folder", "Open Folder…", true, Some("CmdOrCtrl+O"))?;
             let save = MenuItem::with_id(handle, "save-idea", "Save Idea", true, Some("CmdOrCtrl+S"))?;
-            let export = MenuItem::with_id(handle, "export-pdf", "Export PDF…", true, Some("CmdOrCtrl+Shift+E"))?;
+            let export = MenuItem::with_id(handle, "export-pdf", "Export…", true, Some("CmdOrCtrl+Shift+E"))?;
             let sep = PredefinedMenuItem::separator(handle)?;
             let compare = CheckMenuItem::with_id(handle, "toggle-compare", "Compare", true, true, Some("CmdOrCtrl+Shift+R"))?;
             let view_sep = PredefinedMenuItem::separator(handle)?;
@@ -81,6 +81,7 @@ pub fn run() {
             fs::fs_read_binary,
             fs::fs_write_text,
             fs::fs_write_binary,
+            fs::fs_write_export_text,
             fs::fs_exists,
             fs::fs_list,
             fs::fs_mkdir,

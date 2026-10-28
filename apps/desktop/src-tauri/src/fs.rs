@@ -83,6 +83,13 @@ pub async fn fs_write_binary(
     atomic_write(target, &content)
 }
 
+/// Skips the workspace root check: the path comes from the save dialog (Markdown export), so it
+/// can be anywhere the person chose — same exemption as `pdf_render`.
+#[tauri::command]
+pub async fn fs_write_export_text(path: String, content: String) -> Result<(), String> {
+    atomic_write(Path::new(&path), content.as_bytes())
+}
+
 #[tauri::command]
 pub async fn fs_exists(state: State<'_, AppState>, path: String) -> Result<bool, String> {
     let root = workspace_root(&state)?;
